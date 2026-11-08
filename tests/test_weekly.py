@@ -142,3 +142,27 @@ def test_the_digest_file_is_written_last_so_a_failed_run_can_be_retried(monkeypa
     with pytest.raises(KeyError):
         run.main()
     assert not (tmp_path / "digests" / "2026-10-26.md").exists()   # an existing digest means "done", so it must come last
+
+
+# ---- the narrative style ------------------------------------------------------
+
+def test_story_style_leads_with_prose_and_puts_the_table_after_it():
+    data = collect.collect(TODAY, make_source(Path(__import__("tempfile").mkdtemp())))
+    text = report.render(data, {"AAA": "Agency A"}, style="story")
+    head, _, tail = text.partition("## The numbers")
+    assert head.startswith("# Regulations.gov comments, Oct 26 – Nov 1, 2026")
+    assert "comments were posted across 5 dockets" in head and "the top 3 dockets drew" in head
+    assert "|" not in head.replace("A / title", "")              # no table before the numbers section
+    assert "| Docket |" in tail
+    assert "of the week's posts came on Oct 30, so this looks like a batch release" in head
+    assert "## Also moving" in head and "is new: its first comment was posted Oct 26" in head
+    assert "2026-" not in head                                   # dates are written for people, not as ISO strings
+
+
+def test_story_sample_sentence_says_all_when_the_whole_sample_agrees():
+    import sample as s
+    r = {"readable_ids": list("abcde"), "stances": {"oppose": 5, "support": 0, "mixed": 0, "unclear": 0, "off_topic": 0},
+         "duplicate_groups": []}
+    assert report.sample_sentence(r) == "In a random sample of 5, all 5 opposed; a script found no near-copies among them."
+    r["stances"] = {"oppose": 3, "support": 2, "mixed": 0, "unclear": 0, "off_topic": 0}
+    assert "3 opposed and 2 supported" in report.sample_sentence(r) and s is not None

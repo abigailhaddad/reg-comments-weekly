@@ -117,31 +117,133 @@ def sample_section(samples: list[dict], data: dict) -> list[str]:
     return L
 
 
+def plain_list(items: list[str]) -> str:
+    items = [i for i in items if i]
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1] if items else ""
+
+
+def short_title(title: str, limit: int = 110) -> str:
+    t = " ".join((title or "(no title)").split()).replace("|", "/")
+    return t if len(t) <= limit else t[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "..."
+
+
+def nice_day(iso: str) -> str:
+    """"2026-11-03" -> "Nov 3"."""
+    d = date.fromisoformat(iso[:10])
+    return f"{d:%b} {d.day}"
+
+
+def delta_phrase(this: int, prior: int) -> str:
+    if prior == 0:
+        return "none the week before"
+    return f"up from {prior:,}" if this > prior else f"down from {prior:,}" if this < prior else "the same as the week before"
+
+
+STANCE_WORDS = {"oppose": "opposed", "support": "supported", "mixed": "were mixed", "unclear": "were unclear",
+                "off_topic": "were off topic"}
+
+
+def sample_sentence(r: dict) -> str:
+    n = len(r["readable_ids"])
+    counts = [(s, c) for s, c in sorted(r["stances"].items(), key=lambda kv: -kv[1]) if c]
+    parts = [f"all {c} {STANCE_WORDS[s]}" if c == n else f"{c} {STANCE_WORDS[s]}" for s, c in counts]
+    dup = sum(len(g) for g in r["duplicate_groups"])
+    copies = (f"{dup} of them were near-copies of other comments in the sample, which points to form letters"
+              if dup else "a script found no near-copies among them")
+    return f"In a random sample of {n}, {plain_list(parts)}; {copies}."
+
+
+def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: list[dict], top_n: int = 3) -> list[str]:
+    """The week as short paragraphs, not a table. Every number comes from the counts."""
+    t, today = data["totals"], data["today"]
+    by = {r["docket_id"]: r for r in rows}
+    sample_by = {r["docket_id"]: r for r in (samples or [])}
+    lead = [by[c["docket_id"]] for c in data["counts"][:top_n] if c["docket_id"] in by]
+    out = []
+    if t["prior_week"]:
+        out.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets, "
+                   f"{abs(t['this_week'] / t['prior_week'] - 1):.0%} {'more' if t['this_week'] >= t['prior_week'] else 'fewer'} than the week before.")
+    else:
+        out.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets.")
+    if lead and t["this_week"]:
+        share = sum(r["this_week"] for r in lead) / t["this_week"]
+        out[0] += f" Most of them went to a few places: the top {len(lead)} dockets drew {share:.0%} of the week's total."
+    out.append("\"Posted\" means the day the agency made a comment public, not the day it was submitted, "
+               "and agencies often post in batches, so a big week can be a backlog being released.")
+    for r in lead:
+        agency = names.get(r["agency"], r["agency"] or "")
+        para = [f"### {short_title(r['title'])}", "",
+                f"{agency}. {r['this_week']:,} comments were posted this week, {delta_phrase(r['this_week'], r['prior_week'])}, "
+                f"and {r['total']:,} so far."]
+        if r["closes"]:
+            para[-1] += (f" The comment period ended {nice_day(r['closes'])}." if r["closes"] < today.isoformat()
+                         else f" Comments are open until {nice_day(r['closes'])}.")
+        if r["bulk"]:
+            para[-1] += f" {r['bulk_share']:.0%} of the week's posts came on {nice_day(r['bulk_day'])}, so this looks like a batch release."
+        if r["new"]:
+            para[-1] += f" The first comment was posted {nice_day(r['first_posted'])}."
+        sm = sample_by.get(r["docket_id"])
+        if sm and not sm.get("error"):
+            para += ["", sample_sentence(sm), "", sm["summary"]]
+        out += [""] + para
+    rest_new = [r for r in rows if r["new"] and r not in lead][:SECTION_N]
+    rest_jump = [r for r in rows if r["jump"] and r not in lead][:SECTION_N]
+    rest_close = sorted([r for r in rows if r["closing"] and r not in lead], key=lambda r: r["closes"])[:SECTION_N]
+
+    def who(r):
+        return f"**{short_title(r['title'], 80)}** ({names.get(r['agency'], r['agency'])})"
+    more = [f"{who(r)} is new: its first comment was posted {nice_day(r['first_posted'])}, and {r['this_week']:,} came in this week."
+            for r in rest_new]
+    more += [f"{who(r)} jumped to {r['this_week']:,} comments this week, {r['factor']:.0f}x its recent weekly average."
+             for r in rest_jump]
+    more += [f"{who(r)} closes {nice_day(r['closes'])}. It has {r['total']:,} comments so far, {r['this_week']:,} of them this week."
+             for r in rest_close]
+    if more:
+        out += ["", "## Also moving", ""]
+        for m in more:
+            out += [m, ""]
+    return out
+
+
 def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] | None = None,
-           sample_cost: float = 0.0) -> str:
+           sample_cost: float = 0.0, style: str = "table") -> str:
     names = names if names is not None else agency_names()
     ws, we, t = data["week_start"], data["week_end"], data["totals"]
     rows = annotate(data)
     by_week = {r["docket_id"]: r for r in rows}
     L = [f"# Regulations.gov comments, {fmt_week(ws, we)}", ""]
-    change = f" ({t['this_week'] / t['prior_week'] - 1:+.0%} on the week before)" if t["prior_week"] else ""
-    L.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets{change}. "
-             "\"Posted\" means the day the agency made a comment public, not the day it was submitted, and "
-             "agencies often post in batches, so a big week can be a release of a backlog.")
-    if data["data_through"] and data["data_through"] < we.isoformat():
-        L += ["", f"⚠️ The mirror only has posts through {data['data_through']}, before the end of this week, "
-                  "so the last days are missing and these counts are low."]
-    top = [by_week[c["docket_id"]] for c in data["counts"][:TOP_N] if c["docket_id"] in by_week]
-    if top:
-        L += ["", "## Most comments posted", ""] + table(top, names)
-    if samples:
-        L += sample_section(samples, data)
-    sections = [("New dockets drawing comments", [r for r in rows if r["new"]], f"first comment within {NEW_WITHIN_DAYS} days before the week"),
-                ("Sudden jumps", [r for r in rows if r["jump"]], f"at least {SURGE_MIN:,} posted and at least {SURGE_FACTOR}x the mean of the four weeks before"),
-                ("Comment periods closing soon", sorted([r for r in rows if r["closing"]], key=lambda r: r["closes"]), f"closing within {CLOSING_DAYS} days")]
-    for title, found, rule in sections:
-        if found:
-            L += ["", f"## {title}", "", f"({rule}; showing up to {SECTION_N})", ""] + table(found[:SECTION_N], names)
+    if style == "story":
+        L += story(data, names, samples, rows)
+        if data["data_through"] and data["data_through"] < we.isoformat():
+            L += ["", f"⚠️ The mirror only has posts through {data['data_through']}, before the end of this week, "
+                      "so the last days are missing and these counts are low."]
+        top = [by_week[c["docket_id"]] for c in data["counts"][:TOP_N] if c["docket_id"] in by_week]
+        if top:
+            L += ["", "## The numbers", "", f"The {len(top)} dockets with the most comments posted:", ""] + table(top, names)
+        if samples:
+            L += ["", "Sample summaries: a model labeled each sampled comment and wrote the summary; the counts and the "
+                      "near-copy check are computed by script, and a second model labeled stance again as a check "
+                      "(agreement with the first model is in `digests/samples/`). Theme groupings are the model's own "
+                      "and approximate. A sample of 25 is not a poll."]
+    else:
+        change = f" ({t['this_week'] / t['prior_week'] - 1:+.0%} on the week before)" if t["prior_week"] else ""
+        L.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets{change}. "
+                 "\"Posted\" means the day the agency made a comment public, not the day it was submitted, and "
+                 "agencies often post in batches, so a big week can be a release of a backlog.")
+        if data["data_through"] and data["data_through"] < we.isoformat():
+            L += ["", f"⚠️ The mirror only has posts through {data['data_through']}, before the end of this week, "
+                      "so the last days are missing and these counts are low."]
+        top = [by_week[c["docket_id"]] for c in data["counts"][:TOP_N] if c["docket_id"] in by_week]
+        if top:
+            L += ["", "## Most comments posted", ""] + table(top, names)
+        if samples:
+            L += sample_section(samples, data)
+        sections = [("New dockets drawing comments", [r for r in rows if r["new"]], f"first comment within {NEW_WITHIN_DAYS} days before the week"),
+                    ("Sudden jumps", [r for r in rows if r["jump"]], f"at least {SURGE_MIN:,} posted and at least {SURGE_FACTOR}x the mean of the four weeks before"),
+                    ("Comment periods closing soon", sorted([r for r in rows if r["closing"]], key=lambda r: r["closes"]), f"closing within {CLOSING_DAYS} days")]
+        for title, found, rule in sections:
+            if found:
+                L += ["", f"## {title}", "", f"({rule}; showing up to {SECTION_N})", ""] + table(found[:SECTION_N], names)
     L += ["", "---"]
     if samples:
         L.append(f"Sampled summaries: Sonnet 5.5 with a Haiku 5.5 stance check; cost ${sample_cost:.2f}. "

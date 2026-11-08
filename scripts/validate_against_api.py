@@ -35,6 +35,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--week", required=True, help="Monday of the week, YYYY-MM-DD")
     ap.add_argument("--top", type=int, default=5)
+    ap.add_argument("--days", action="store_true", help="also compare day by day across all dockets (7 more calls)")
     a = ap.parse_args()
     ws = date.fromisoformat(a.week)
     lo, hi = ws.isoformat(), (ws + timedelta(days=6)).isoformat()
@@ -55,6 +56,28 @@ def main() -> int:
             break
         L.append(f"| {label} | {mirror:,} | {n:,} | {n - mirror:+,} | {(n - mirror) / n:.2%} |" if n else f"| {label} | {mirror:,} | 0 | | |")
         time.sleep(2)
+    if a.days:
+        import sys
+
+        import duckdb
+        sys.path.insert(0, str(ROOT / "src"))
+        import collect
+        con = duckdb.connect()
+        mirror_days = dict(con.sql(f"""SELECT substr(posted_date, 1, 10), count(*)
+            FROM read_parquet('{collect.SOURCE}/comments.parquet')
+            WHERE substr(posted_date, 1, 10) BETWEEN '{lo}' AND '{hi}' GROUP BY 1""").fetchall())
+        L += ["", "Day by day, all dockets (the date bounds are inclusive: a single day is `ge` = `le` = that day):", "",
+              "| Day | Mirror | API | Difference | % of API |", "|---|---:|---:|---:|---:|"]
+        for i in range(7):
+            day = (ws + timedelta(days=i)).isoformat()
+            try:
+                n, _ = api_total(key, day, day)
+            except Exception as e:
+                L.append(f"| {day} | {mirror_days.get(day, 0):,} | error: {str(e)[:60]} | | |")
+                break
+            m = mirror_days.get(day, 0)
+            L.append(f"| {day} | {m:,} | {n:,} | {n - m:+,} | {(n - m) / n:.2%} |" if n else f"| {day} | {m:,} | 0 | | |")
+            time.sleep(1.2)
     out = ROOT / "proof" / f"api-check-{a.week}.md"
     out.parent.mkdir(exist_ok=True)
     out.write_text("\n".join(L) + "\n", encoding="utf-8")

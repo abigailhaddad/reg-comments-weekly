@@ -53,6 +53,7 @@ def main() -> int:
     ap.add_argument("--src", default=collect.SOURCE, help="base URL or folder holding the parquet files")
     ap.add_argument("--samples", type=int, default=0, help="summarize a random sample of comments for this many top dockets (0 = off; uses the API key)")
     ap.add_argument("--sample-size", type=int, default=25, help="comments drawn per docket")
+    ap.add_argument("--style", choices=("story", "table"), default="story", help="narrative digest (default) or tables only")
     a = ap.parse_args()
     today = date.fromisoformat(a.today) if a.today else date.today()
 
@@ -75,7 +76,7 @@ def main() -> int:
             w.writerows([c["docket_id"], c["agency"], c["this_week"], c["prior_week"], round(c["prior_avg"], 2)]
                         for c in data["counts"])
         # the digest goes last: an existing digest means "done", so a run that fails earlier can be retried
-        out.write_text(report.render(data, samples=samples, sample_cost=sample_cost), encoding="utf-8")
+        out.write_text(report.render(data, samples=samples, sample_cost=sample_cost, style=a.style), encoding="utf-8")
         written = True
         print(f"wrote {out.relative_to(ROOT)} and {csv_path.relative_to(ROOT)}: {data['totals']['this_week']:,} comments, "
               f"{data['totals']['dockets']:,} dockets, data through {data['data_through']}")
