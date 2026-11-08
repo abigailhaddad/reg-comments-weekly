@@ -67,13 +67,13 @@
     "USBC-2026-0628-98990": "27b0f37defbb7e063e8cd8499c1f14656d239dcbeadda2d980affe2be57a8133",
     "USBC-2026-0628-108428": "7582023d2fe62015a016c9df4006a48e418846c3dda0ab6d92a215c14d60dc1c",
     "USBC-2026-0628-95419": "1fa1f8c6071eaec15c2f0fa0a4b8bde7d9d56597fef7819ad7ef2ede237165cb",
-    "USBC-2026-0628-82012": "a8fea9f345fb6303995fa7db61034212907fe18982412d76dde69d91838c3cc3",
+    "USBC-2026-0628-82012": "caa7ab19ee3b81f5fc0d41d5d8a0634005f3ce91cead40a96ba37cabcc9223d5",
     "USBC-2026-0628-88813": "d21d54a412882e1f9237415d006085d9395f13d737d0312faca88ee82048fc45",
     "USBC-2026-0628-97851": "1549390093aa4b585559baffaabdd6ae968d17fc203254517ca149354cc1a2dc",
-    "USBC-2026-0628-92006": "4a9332b7424717bf5663b147d274f1e6a2ca2e2d5aaa6b3e497cac08a97615cd",
+    "USBC-2026-0628-92006": "5354ed7a270643215eb7a744f66d8bc013276ef82528a4a30d662463f97a2a8f",
     "USBC-2026-0628-88777": "993cdf7e46e1344375b0a6d4bcba575f00d29d898189bf78c1d1d8fe6fa5e28f",
-    "USBC-2026-0628-98713": "1fe9e9949d9fe5db15b7950859f67e4c2f370d7db23ad429d2f4863693d7cd20",
-    "USBC-2026-0628-93236": "b6b0720262423fd5493925272e8ce3c0462d5338656e023961355c2e26b40e29",
+    "USBC-2026-0628-98713": "9693bdf62182d25bc496b4c0b406e1a115c3c8809d5092ae317b87a92ef5c096",
+    "USBC-2026-0628-93236": "37562a36e932286e4fee00f9e32f02fbed7484d3a0f6c4bc2b4aee1ab01b7ef7",
     "USBC-2026-0628-89629": "e334d84932898d775ace71da7af823ec69f33704308e482b2a1dea6b179b7dfd",
     "USBC-2026-0628-99150": "28136cdf158954c4bdf27d4d63197ec6c53e4aabfb5f4aa7a46bcbcb9a3d1e45",
     "USBC-2026-0628-107427": "5ebb7f2ecb8aa125ab4c5d80c9947bce29f3cc5df536193dfcb258a41960d9f8",
@@ -120,7 +120,7 @@
    ],
    "model": "claude-sonnet-5-5",
    "check_model": "claude-haiku-5-5",
-   "summary": "Nearly all of these commenters oppose the proposed census rule and ask the Bureau to withdraw it. They argue that the Constitution and the 14th Amendment require counting all residents regardless of immigration status, and that excluding people would distort apportionment and federal funding. Others object to the winter-residence approach for snowbirds, saying it would shift seats and money away from colder states, and to dropping race and ethnicity questions, which they say are needed for civil rights enforcement, health planning, and community visibility. A few ask for a longer comment period. One commenter supports the rule, saying noncitizens should not count toward apportionment and that a citizenship question should be added.",
+   "summary": "Nearly all of these commenters oppose the proposed census rule and ask the Bureau to withdraw it. They argue that excluding people by immigration status violates the constitutional mandate to count every resident and would skew apportionment and federal funding. Others object to counting people where they spend winter, which they say would shift seats and money away from colder states. Many also object to dropping race and ethnicity questions, which they say would hurt civil rights enforcement, health planning and the visibility of specific groups. One commenter supports the rule, favoring exclusion of non-citizens from apportionment and a citizenship question, and a couple of commenters also ask for a longer comment period.",
    "stances": {
     "support": 1,
     "oppose": 24,
@@ -157,7 +157,7 @@
    },
    "themes": [
     {
-     "label": "Constitution requires counting all residents regardless of immigration status",
+     "label": "Excluding people by immigration status violates the constitutional count and precedent",
      "indices": [
       6,
       8,
@@ -186,7 +186,34 @@
      ]
     },
     {
-     "label": "Removing race and ethnicity questions harms civil rights, health and equity data",
+     "label": "Loss of accurate data cuts federal funding and community planning",
+     "indices": [
+      5,
+      7,
+      10,
+      12,
+      13,
+      14,
+      19,
+      23,
+      24,
+      25
+     ],
+     "comment_ids": [
+      "USBC-2026-0628-95419",
+      "USBC-2026-0628-88813",
+      "USBC-2026-0628-88777",
+      "USBC-2026-0628-93236",
+      "USBC-2026-0628-89629",
+      "USBC-2026-0628-99150",
+      "USBC-2026-0628-88724",
+      "USBC-2026-0628-102198",
+      "USBC-2026-0628-87938",
+      "USBC-2026-0628-107141"
+     ]
+    },
+    {
+     "label": "Removing race and ethnicity questions harms civil rights, health and data on groups",
      "indices": [
       3,
       4,
@@ -211,32 +238,7 @@
      ]
     },
     {
-     "label": "Inaccurate count would reduce federal funding and local planning ability",
-     "indices": [
-      7,
-      10,
-      12,
-      13,
-      14,
-      19,
-      23,
-      24,
-      25
-     ],
-     "comment_ids": [
-      "USBC-2026-0628-88813",
-      "USBC-2026-0628-88777",
-      "USBC-2026-0628-93236",
-      "USBC-2026-0628-89629",
-      "USBC-2026-0628-99150",
-      "USBC-2026-0628-88724",
-      "USBC-2026-0628-102198",
-      "USBC-2026-0628-87938",
-      "USBC-2026-0628-107141"
-     ]
-    },
-    {
-     "label": "Winter-residence rule would shift seats and funds away from colder states",
+     "label": "Winter-residence rule would unfairly shift seats and funds from colder states",
      "indices": [
       1,
       5,
@@ -255,7 +257,7 @@
      ]
     },
     {
-     "label": "Request for extended comment period",
+     "label": "Request to extend comment period",
      "indices": [
       12,
       24
@@ -390,7 +392,7 @@
    ],
    "model": "claude-sonnet-5-5",
    "check_model": "claude-haiku-5-5",
-   "summary": "Every comment in this sample opposes the proposed streamlined permitting for oil and gas production sites in the National Petroleum Reserve in Alaska. Most use a shared template that calls the plan a shortcut and asks for full, project-specific environmental review under NEPA, including cumulative impacts, along with continued public input and Tribal consultation. A second template focuses on bird habitat, especially the Teshekpuk Lake Special Area, and on caribou, whales, polar bears and Indigenous communities. Both groups raise concerns about wildlife, wetlands, subsistence resources and climate change in a rapidly warming Arctic.",
+   "summary": "All of the sampled commenters oppose the proposed streamlined permitting for oil and gas production sites in the National Petroleum Reserve in Alaska. Most use one of two near-identical form letters, and a shorter variant of the first appears once. They call for a full, project-specific environmental review under NEPA rather than a generic set of conditions, and for cumulative impacts to be studied. They also stress protecting wildlife, wetlands, birds, caribou and the Teshekpuk Lake area, and keeping public input and Tribal consultation. Many add that the Arctic is warming quickly and that further drilling worsens climate change.",
    "stances": {
     "support": 0,
     "oppose": 25,
@@ -427,7 +429,7 @@
    },
    "themes": [
     {
-     "label": "Harm to wildlife, wetlands, water and subsistence resources",
+     "label": "Harm to wildlife, wetlands, and habitat",
      "indices": [
       1,
       2,
@@ -625,7 +627,7 @@
      ]
     },
     {
-     "label": "Criticism of administration's Arctic drilling push",
+     "label": "Criticism of administration's approach to Arctic development",
      "indices": [
       1,
       2,
@@ -666,7 +668,7 @@
      ]
     },
     {
-     "label": "Protect bird habitat and the Teshekpuk Lake Special Area",
+     "label": "Teshekpuk Lake and migratory bird protection",
      "indices": [
       3,
       6,
@@ -691,7 +693,7 @@
    "check_agree": 25,
    "check_n": 25,
    "check_disagree": [],
-   "cost_usd": 0.0418
+   "cost_usd": 0.0417
   },
   {
    "docket_id": "EBSA-2026-0331",
@@ -782,7 +784,7 @@
    "duplicate_groups": [],
    "model": "claude-sonnet-5-5",
    "check_model": "claude-haiku-5-5",
-   "summary": "Every comment in this sample opposes the proposed rule and asks the Department of Labor to withdraw or reconsider it. The central objection is that the rule would turn silence into consent by making electronic delivery the default, so people would have to opt out to keep paper copies of HIPAA, COBRA and benefit documents. Commenters say seniors, rural residents, low-income households, people with disabilities, military members and the cybersecurity-wary would be hit hardest. They also argue that the rule is driven by insurer savings rather than consumer benefit, that no evidence shows people read and understand electronic notices as well as paper, and that people who want electronic delivery can already opt in.",
+   "summary": "Every comment in this sample opposes the proposed rule and asks the Department to withdraw or reconsider it. Commenters say that treating inaction as consent is not real consent for health coverage notices, and they want paper to stay the default with electronic delivery by opt-in. They stress the harm to seniors, rural residents, low-income households, people with disabilities, military members, and those with cybersecurity worries. Many also say the rule is driven by insurer cost savings rather than evidence that people will read and understand electronic documents. Several note that people who like electronic delivery can already opt in, so the current system works.",
    "stances": {
     "support": 0,
     "oppose": 25,
@@ -830,12 +832,18 @@
       7,
       8,
       10,
+      11,
       12,
+      14,
       15,
+      16,
       18,
       20,
       21,
-      24
+      22,
+      23,
+      24,
+      25
      ],
      "comment_ids": [
       "EBSA-2026-0331-40699",
@@ -847,16 +855,110 @@
       "EBSA-2026-0331-42310",
       "EBSA-2026-0331-45357",
       "EBSA-2026-0331-42854",
+      "EBSA-2026-0331-39593",
       "EBSA-2026-0331-44143",
+      "EBSA-2026-0331-41647",
       "EBSA-2026-0331-39590",
+      "EBSA-2026-0331-35103",
       "EBSA-2026-0331-40738",
       "EBSA-2026-0331-41028",
       "EBSA-2026-0331-45471",
-      "EBSA-2026-0331-39346"
+      "EBSA-2026-0331-39146",
+      "EBSA-2026-0331-44273",
+      "EBSA-2026-0331-39346",
+      "EBSA-2026-0331-44569"
      ]
     },
     {
-     "label": "Silence should not count as consent; keep affirmative opt-in",
+     "label": "Rule is driven by insurer cost savings rather than consumer benefit",
+     "indices": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      19,
+      20,
+      22,
+      23,
+      24,
+      25
+     ],
+     "comment_ids": [
+      "EBSA-2026-0331-40699",
+      "EBSA-2026-0331-43257",
+      "EBSA-2026-0331-45672",
+      "EBSA-2026-0331-34671",
+      "EBSA-2026-0331-35018",
+      "EBSA-2026-0331-45253",
+      "EBSA-2026-0331-45357",
+      "EBSA-2026-0331-40013",
+      "EBSA-2026-0331-42854",
+      "EBSA-2026-0331-44143",
+      "EBSA-2026-0331-41791",
+      "EBSA-2026-0331-41647",
+      "EBSA-2026-0331-39590",
+      "EBSA-2026-0331-35103",
+      "EBSA-2026-0331-41093",
+      "EBSA-2026-0331-39776",
+      "EBSA-2026-0331-41028",
+      "EBSA-2026-0331-39146",
+      "EBSA-2026-0331-44273",
+      "EBSA-2026-0331-39346",
+      "EBSA-2026-0331-44569"
+     ]
+    },
+    {
+     "label": "No evidence electronic delivery gives equal comprehension and engagement",
+     "indices": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      8,
+      11,
+      14,
+      15,
+      16,
+      18,
+      22,
+      23,
+      24,
+      25
+     ],
+     "comment_ids": [
+      "EBSA-2026-0331-40699",
+      "EBSA-2026-0331-43257",
+      "EBSA-2026-0331-45672",
+      "EBSA-2026-0331-34671",
+      "EBSA-2026-0331-45253",
+      "EBSA-2026-0331-42310",
+      "EBSA-2026-0331-45357",
+      "EBSA-2026-0331-39593",
+      "EBSA-2026-0331-41647",
+      "EBSA-2026-0331-39590",
+      "EBSA-2026-0331-35103",
+      "EBSA-2026-0331-40738",
+      "EBSA-2026-0331-39146",
+      "EBSA-2026-0331-44273",
+      "EBSA-2026-0331-39346",
+      "EBSA-2026-0331-44569"
+     ]
+    },
+    {
+     "label": "Silence or inaction should not count as consent; keep affirmative opt-in",
      "indices": [
       1,
       2,
@@ -865,7 +967,6 @@
       7,
       9,
       10,
-      11,
       13,
       14,
       19,
@@ -881,7 +982,6 @@
       "EBSA-2026-0331-42310",
       "EBSA-2026-0331-40013",
       "EBSA-2026-0331-42854",
-      "EBSA-2026-0331-39593",
       "EBSA-2026-0331-41791",
       "EBSA-2026-0331-41647",
       "EBSA-2026-0331-39776",
@@ -891,113 +991,67 @@
      ]
     },
     {
-     "label": "Rule is driven by insurer cost savings, not consumer benefit",
+     "label": "Current system already lets electronic-preferring people opt in, so no change is needed",
      "indices": [
       1,
       2,
       3,
-      4,
-      5,
-      9,
-      10,
-      14,
-      19,
-      22,
-      25
-     ],
-     "comment_ids": [
-      "EBSA-2026-0331-40699",
-      "EBSA-2026-0331-43257",
-      "EBSA-2026-0331-45672",
-      "EBSA-2026-0331-34671",
-      "EBSA-2026-0331-35018",
-      "EBSA-2026-0331-40013",
-      "EBSA-2026-0331-42854",
-      "EBSA-2026-0331-41647",
-      "EBSA-2026-0331-39776",
-      "EBSA-2026-0331-39146",
-      "EBSA-2026-0331-44569"
-     ]
-    },
-    {
-     "label": "No evidence electronic delivery gives equal comprehension and engagement",
-     "indices": [
-      1,
-      2,
-      3,
-      4,
-      6,
-      8,
-      14,
-      15,
-      22,
-      23
-     ],
-     "comment_ids": [
-      "EBSA-2026-0331-40699",
-      "EBSA-2026-0331-43257",
-      "EBSA-2026-0331-45672",
-      "EBSA-2026-0331-34671",
-      "EBSA-2026-0331-45253",
-      "EBSA-2026-0331-45357",
-      "EBSA-2026-0331-41647",
-      "EBSA-2026-0331-39590",
-      "EBSA-2026-0331-39146",
-      "EBSA-2026-0331-44273"
-     ]
-    },
-    {
-     "label": "Burden shifts to consumers to opt out and maintain paper",
-     "indices": [
-      4,
-      8,
-      12,
-      16,
-      17,
-      19,
-      20,
-      21,
-      24,
-      25
-     ],
-     "comment_ids": [
-      "EBSA-2026-0331-34671",
-      "EBSA-2026-0331-45357",
-      "EBSA-2026-0331-44143",
-      "EBSA-2026-0331-35103",
-      "EBSA-2026-0331-41093",
-      "EBSA-2026-0331-39776",
-      "EBSA-2026-0331-41028",
-      "EBSA-2026-0331-45471",
-      "EBSA-2026-0331-39346",
-      "EBSA-2026-0331-44569"
-     ]
-    },
-    {
-     "label": "Current system already lets electronic-preferring people opt in",
-     "indices": [
-      1,
-      2,
       5,
       8,
       9,
       13,
       14,
       17,
+      18,
+      19,
       20,
       21
      ],
      "comment_ids": [
       "EBSA-2026-0331-40699",
       "EBSA-2026-0331-43257",
+      "EBSA-2026-0331-45672",
       "EBSA-2026-0331-35018",
       "EBSA-2026-0331-45357",
       "EBSA-2026-0331-40013",
       "EBSA-2026-0331-41791",
       "EBSA-2026-0331-41647",
       "EBSA-2026-0331-41093",
+      "EBSA-2026-0331-40738",
+      "EBSA-2026-0331-39776",
       "EBSA-2026-0331-41028",
       "EBSA-2026-0331-45471"
+     ]
+    },
+    {
+     "label": "Burden shifts to consumers to opt out and navigate complex systems to keep paper",
+     "indices": [
+      2,
+      4,
+      8,
+      9,
+      11,
+      12,
+      16,
+      17,
+      19,
+      20,
+      21,
+      24
+     ],
+     "comment_ids": [
+      "EBSA-2026-0331-43257",
+      "EBSA-2026-0331-34671",
+      "EBSA-2026-0331-45357",
+      "EBSA-2026-0331-40013",
+      "EBSA-2026-0331-39593",
+      "EBSA-2026-0331-44143",
+      "EBSA-2026-0331-35103",
+      "EBSA-2026-0331-41093",
+      "EBSA-2026-0331-39776",
+      "EBSA-2026-0331-41028",
+      "EBSA-2026-0331-45471",
+      "EBSA-2026-0331-39346"
      ]
     }
    ],
@@ -1005,8 +1059,8 @@
    "check_agree": 25,
    "check_n": 25,
    "check_disagree": [],
-   "cost_usd": 0.0371
+   "cost_usd": 0.0376
   }
  ],
- "cost_usd": 0.1063
+ "cost_usd": 0.1067
 }
