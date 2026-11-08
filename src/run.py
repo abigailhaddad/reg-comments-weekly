@@ -67,7 +67,6 @@ def main() -> int:
         samples, sample_cost = None, 0.0
         if a.samples:
             samples, sample_cost = sampled_summaries(data, a, ws)
-        out.write_text(report.render(data, samples=samples, sample_cost=sample_cost), encoding="utf-8")
         csv_path = ROOT / "digests" / "data" / f"{ws}.csv"
         csv_path.parent.mkdir(exist_ok=True)
         with open(csv_path, "w", newline="", encoding="utf-8") as fh:
@@ -75,6 +74,8 @@ def main() -> int:
             w.writerow(["docket_id", "agency", "posted_this_week", "posted_prior_week", "mean_posted_prior_4_weeks"])
             w.writerows([c["docket_id"], c["agency"], c["this_week"], c["prior_week"], round(c["prior_avg"], 2)]
                         for c in data["counts"])
+        # the digest goes last: an existing digest means "done", so a run that fails earlier can be retried
+        out.write_text(report.render(data, samples=samples, sample_cost=sample_cost), encoding="utf-8")
         written = True
         print(f"wrote {out.relative_to(ROOT)} and {csv_path.relative_to(ROOT)}: {data['totals']['this_week']:,} comments, "
               f"{data['totals']['dockets']:,} dockets, data through {data['data_through']}")

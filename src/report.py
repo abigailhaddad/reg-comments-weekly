@@ -75,7 +75,7 @@ def table(rows: list[dict], names: dict[str, str]) -> list[str]:
     out = ["| Docket | Agency | About | Posted | Week before | All time | Comments close | Note |",
            "|---|---|---|---:|---:|---:|---|---|"]
     for r in rows:
-        title = (r["title"] or "(no title)").replace("|", "/")
+        title = " ".join((r["title"] or "(no title)").split()).replace("|", "/")
         title = title if len(title) <= 90 else title[:87] + "..."
         agency = names.get(r["agency"], r["agency"] or "")
         out.append(f"| [{r['docket_id']}](https://www.regulations.gov/docket/{r['docket_id']}) | {agency} | {title} "
@@ -97,14 +97,15 @@ def sample_section(samples: list[dict], data: dict) -> list[str]:
          "Theme counts are the model's own grouping and are approximate."]
     for r in samples:
         d = r["docket_id"]
-        title = (data["info"].get(d, {}).get("title") or "").replace("|", "/")
+        title = " ".join((data["info"].get(d, {}).get("title") or "").split()).replace("|", "/")
         L += ["", f"### {d}" + (f": {title if len(title) <= 90 else title[:87] + '...'}" if title else "")]
         if r.get("error"):
             L.append(f"Not summarized: {r['error']}.")
             continue
         n = len(r["readable_ids"])
-        extra = f" ({len(r['no_text'])} of the {r['sample_size']} drawn had no text, such as attachment-only comments)" if r["no_text"] else ""
-        L.append(f"A random sample of {n} of the {r['total_posted']:,} comments posted this week{extra}.")
+        none = len(r["no_text"])
+        detail = f"{n} had text to summarize" + (f"; {none} had none, such as attachment-only comments" if none else "")
+        L.append(f"A random sample of {r['sample_size']} of the {r['total_posted']:,} comments posted this week ({detail}).")
         stances = ", ".join(f"{s} {c}" for s, c in sorted(r["stances"].items(), key=lambda kv: -kv[1]) if c)
         L.append(f"Stance (model labels): {stances}. The second model agreed on {r['check_agree']} of {r['check_n']}.")
         dup = sum(len(g) for g in r["duplicate_groups"])

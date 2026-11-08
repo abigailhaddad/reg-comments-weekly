@@ -20,7 +20,7 @@ With `--samples K`, the run also draws a random sample of comments (25 by defaul
 - The sample is deterministic (ordered by md5 of the comment ID and the week), so it can be redrawn. `digests/samples/<week>.json` holds the comment IDs, text hashes, labels and themes, not the comment text, so a reader can check any comment on regulations.gov.
 - Form letters are found by script (word-triplet similarity), not by the model. In a first test the model called four comments "identical" when none were exact copies.
 - The model labels each comment's stance and groups comments into themes. Stance counts are computed by script from those labels, and Claude Haiku 5.5 labels stance independently; the digest says how often the two agreed. Theme counts are the model's grouping and approximate.
-- The model is told not to quote comments or repeat names or other personal details, and emails and phone numbers are removed before any text goes to a model. That instruction isn't enforced by code, so skim a digest before you publish it.
+- The model is told not to quote comments or repeat names or other personal details, and emails and phone numbers are removed (best effort) before any text goes to a model. The instruction not to quote or name anyone isn't enforced by code, so skim a digest before you publish it.
 - A sample of 25 is not a poll.
 
 ## Running

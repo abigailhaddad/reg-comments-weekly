@@ -92,10 +92,52 @@ def _result(**kw):
 def test_sample_section_reports_counts_agreement_and_duplicates_and_failures_loudly():
     data = {"info": {"D-1": {"title": "A | title"}}}
     text = "\n".join(report.sample_section([_result(), {"docket_id": "D-2", "error": "ValueError: labels cover 3 of 9"}], data))
-    assert "A random sample of 9 of the 1,234 comments posted this week (1 of the 10 drawn had no text" in text
+    assert "A random sample of 10 of the 1,234 comments posted this week (9 had text to summarize; 1 had none, such as" in text
     assert "Stance (model labels): oppose 7, support 2. The second model agreed on 8 of 9." in text
     assert "5 of 9 sampled comments fall in 2 groups of near-copies" in text
     assert "### D-1: A / title" in text and "- funding (3 of 9)" in text
     assert "### D-2" in text and "Not summarized: ValueError: labels cover 3 of 9." in text
     none = "\n".join(report.sample_section([_result(duplicate_groups=[])], data))
     assert "Near-identical text (by script): none found in the sample." in none
+
+
+# ---- fixes from the 2026-11-08 code review -----------------------------------
+
+def test_non_latin_comments_are_not_called_form_letters():
+    a = "我反对这项拟议规则，因为它会减少我们社区获得的联邦资金，并且违反宪法对所有居民的计数要求。"
+    b = "请延长公众评论期限，让农村图书馆和小型部落政府有足够时间提交意见，谢谢你们的考虑。"
+    assert sample.near_duplicate_groups([a, b]) == []
+    assert sample.near_duplicate_groups([a, a + "谢谢"]) == [[1, 2]]
+
+
+def test_accented_latin_text_is_compared_by_words():
+    a = "Me opongo a esta regla porque afectaría el financiamiento de nuestras comunidades y la educación de los niños."
+    b = "Solicito que se extienda el período de comentarios para que las comunidades rurales puedan responder con calma."
+    assert sample.near_duplicate_groups([a, b]) == []
+    assert sample.near_duplicate_groups([a, a + " Atentamente, Ana."]) == [[1, 2]]
+
+
+def test_clean_keeps_less_than_and_greater_than_in_prose_but_strips_real_tags():
+    assert sample.clean("Costs rise when x < 5 percent and y > 3 units") == "Costs rise when x < 5 percent and y > 3 units"
+    assert sample.clean("real <b>bold</b> text<br/>next line") == "real bold text next line"
+
+
+def test_clean_removes_plus_one_unseparated_and_parenthesized_phone_numbers():
+    out = sample.clean("Call +1 202-555-0143 or 2025550143 or (202) 555 0143 today")
+    assert "555" not in out and "0143" not in out and out.count("[phone removed]") == 3
+
+
+def test_a_failure_after_the_first_model_call_still_reports_what_was_spent(monkeypatch):
+    calls = []
+
+    def fake_call(client, model, prompt, schema):
+        calls.append(model)
+        if len(calls) == 1:
+            return {"summary": "s", "labels": [{"index": i, "stance": "oppose"} for i in range(1, 6)], "themes": []}, 0.05
+        raise RuntimeError("the second model failed")
+
+    monkeypatch.setattr(sample, "call", fake_call)
+    rows = {f"id{i}": {"comment": f"comment number {i} with enough words in it to count as usable text", "text_content": ""}
+            for i in range(5)}
+    result = sample.summarize_docket(None, "D-1", "title", 100, rows, list(rows))
+    assert "second model failed" in result["error"] and result["cost_usd"] == 0.05

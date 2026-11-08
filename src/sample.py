@@ -54,14 +54,17 @@ def fetch_rows(con, src: str, ids: list[str]) -> dict[str, dict]:
 # ---- cleaning ----------------------------------------------------------------
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
-PHONE = re.compile(r"\(?\b\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b")
+PHONE = re.compile(r"(?<!\d)(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?!\d)")
 
 
 def clean(text: str) -> str:
-    """HTML entities and tags out, whitespace collapsed, emails and phone numbers removed."""
+    """HTML entities and tags out, whitespace collapsed, emails and phone numbers removed.
+
+    Only things that look like tags (a letter right after "<") are removed, so "x < 5 and y > 3" survives.
+    Phone-number removal is best effort: it can also remove a ten-digit number that isn't a phone number."""
     t = html.unescape(text or "")
     t = re.sub(r"<br\s*/?>|</p>", "\n", t, flags=re.I)
-    t = re.sub(r"<[^>]+>", " ", t)
+    t = re.sub(r"</?[A-Za-z][^<>]{0,200}>", " ", t)
     t = EMAIL.sub("[email removed]", t)
     t = PHONE.sub("[phone removed]", t)
     return re.sub(r"\s+", " ", t).strip()
@@ -78,8 +81,13 @@ def usable_text(row: dict) -> str:
 # ---- duplicates, by code -----------------------------------------------------
 
 def shingles(text: str) -> set[str]:
-    w = re.sub(r"[^a-z0-9 ]", " ", text.lower()).split()
-    return {" ".join(w[i:i + 3]) for i in range(max(1, len(w) - 2))}
+    """Word triplets, or character 5-grams for text with few word breaks (Chinese, Japanese) so that
+    different comments written without spaces are not all treated as the same text."""
+    words = re.findall(r"\w+", text.lower())
+    if len(words) >= 6:
+        return {" ".join(words[i:i + 3]) for i in range(len(words) - 2)}
+    chars = "".join(words)
+    return {chars[i:i + 5] for i in range(max(1, len(chars) - 4))} if chars else {text}
 
 
 def near_duplicate_groups(texts: list[str], threshold: float = DUP_THRESHOLD) -> list[list[int]]:
@@ -154,14 +162,25 @@ def make_client():
     return anthropic.Anthropic(default_headers={"anthropic-workspace-id": ws} if ws else None)
 
 
+class CallFailed(RuntimeError):
+    """A model call that was billed but gave nothing usable; carries what it cost."""
+
+    def __init__(self, message: str, cost: float):
+        super().__init__(message)
+        self.cost = cost
+
+
 def call(client, model: str, prompt: str, schema: dict) -> tuple[dict, float]:
     r = client.messages.create(model=model, max_tokens=4000, messages=[{"role": "user", "content": prompt}],
                                output_config={"effort": "medium", "format": {"type": "json_schema", "schema": schema}})
-    if r.stop_reason in ("refusal", "max_tokens"):
-        raise RuntimeError(f"{model}: {r.stop_reason}")
     pin, pout = PRICES[model]
     cost = (r.usage.input_tokens * pin + r.usage.output_tokens * pout) / 1e6
-    return json.loads("".join(b.text for b in r.content if b.type == "text")), cost
+    if r.stop_reason in ("refusal", "max_tokens"):
+        raise CallFailed(f"{model}: {r.stop_reason}", cost)
+    try:
+        return json.loads("".join(b.text for b in r.content if b.type == "text")), cost
+    except ValueError as e:
+        raise CallFailed(f"{model}: unreadable JSON ({e})", cost) from e
 
 
 def numbered(texts: list[str]) -> str:
@@ -206,10 +225,18 @@ def summarize_docket(client, docket: str, title: str, total: int, rows: dict[str
         return result
     n = len(texts)
     body = numbered(texts)
-    main, c1 = call(client, MODEL, PROMPT.format(n=n, total=total, title=title or docket, body=body), LABEL_SCHEMA)
-    labels = validate(main, n)
-    second, c2 = call(client, CHECK_MODEL, CHECK_PROMPT.format(title=title or docket, body=body), CHECK_SCHEMA)
-    labels2 = validate(second, n)
+    spent = 0.0
+    try:
+        main, c1 = call(client, MODEL, PROMPT.format(n=n, total=total, title=title or docket, body=body), LABEL_SCHEMA)
+        spent += c1
+        labels = validate(main, n)
+        second, c2 = call(client, CHECK_MODEL, CHECK_PROMPT.format(title=title or docket, body=body), CHECK_SCHEMA)
+        spent += c2
+        labels2 = validate(second, n)
+    except Exception as e:   # recorded in the digest, with what was already spent
+        spent += getattr(e, "cost", 0.0)
+        result.update(error=f"{type(e).__name__}: {e}"[:200], cost_usd=round(spent, 4))
+        return result
     themes, dropped = clean_themes(main["themes"], n)
     result.update(summary=main["summary"], stances={s: sum(1 for v in labels.values() if v == s) for s in STANCES},
                   labels={readable[i - 1]: labels[i] for i in labels}, themes=[{**t, "comment_ids": [readable[i - 1] for i in t["indices"]]} for t in themes],

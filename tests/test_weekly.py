@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import duckdb
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -118,3 +119,26 @@ def test_a_week_with_no_candidates_still_renders():
     con.execute(f"copy documents to '{tmp}/documents.parquet' (format parquet)")
     text = report.render(collect.collect(TODAY, str(tmp)), {})
     assert "1 comments were posted across 1 dockets" in text and "| " not in text.split("---")[0]
+
+
+# ---- fixes from the 2026-11-08 code review -----------------------------------
+
+def test_titles_with_newlines_do_not_break_the_table():
+    row = {"docket_id": "X-1", "agency": "XXX", "title": "A title\nthat wraps | and has a pipe", "this_week": 5, "prior_week": 1,
+           "total": 9, "closes": None, "new": False, "jump": False, "bulk": False, "factor": 1.0, "first_posted": None,
+           "bulk_share": 0.0, "bulk_day": None}
+    out = "\n".join(report.table([row], {}))
+    assert "A title that wraps / and has a pipe" in out and out.count("\n") == 2
+
+
+def test_the_digest_file_is_written_last_so_a_failed_run_can_be_retried(monkeypatch, tmp_path):
+    import run
+    data = {"week_start": WS, "week_end": WE, "today": TODAY, "candidates": [], "history": {}, "info": {}, "busiest": {},
+            "totals": {"this_week": 5, "prior_week": 1, "dockets": 1}, "data_through": "2026-11-06",
+            "counts": [{"docket_id": "A-1", "agency": "A", "this_week": 5}]}      # no prior_week: writing the CSV fails
+    monkeypatch.setattr(run, "ROOT", tmp_path)
+    monkeypatch.setattr(collect, "collect", lambda today, src: data)
+    monkeypatch.setattr(sys, "argv", ["run.py", "--today", "2026-11-08"])
+    with pytest.raises(KeyError):
+        run.main()
+    assert not (tmp_path / "digests" / "2026-10-26.md").exists()   # an existing digest means "done", so it must come last

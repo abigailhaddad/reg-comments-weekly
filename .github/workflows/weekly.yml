@@ -50,15 +50,20 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add digests/
-          git diff --cached --quiet || { git commit -m "Comment counts, week of ${{ steps.run.outputs.week }}"; git push; }
+          git diff --cached --quiet || { git commit -m "Comment counts, week of ${{ steps.run.outputs.week }}"; git pull --rebase -q origin main; git push; }
 
+      # Runs even when the digest already existed, so a run that failed after writing it (before the
+      # issue opened) is picked up by the next run. Skips if an issue for the week exists, unless forced.
       - name: Open the digest as an issue (emails you)
-        if: steps.run.outputs.written == 'true'
+        if: steps.run.outputs.file != ''
         env:
           GH_TOKEN: ${{ github.token }}
           WEEK: ${{ steps.run.outputs.week }}
+          FORCE: ${{ inputs.force }}
         run: |
           f="${{ steps.run.outputs.file }}"
+          existing=$(gh issue list --state all --search "\"week of $WEEK\" in:title" --json number --jq length)
+          if [ "$existing" -gt 0 ] && [ "$FORCE" != "true" ]; then echo "An issue for the week of $WEEK already exists."; exit 0; fi
           url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/$f"
           # issue bodies max out at 65,536 characters; a long digest links to the full file
           python - "$f" "$url" > body.md <<'EOF'
