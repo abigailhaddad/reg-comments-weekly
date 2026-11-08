@@ -1,0 +1,75 @@
+name: Weekly comment counts
+
+# Tuesdays 14:00 UTC (9-10am Eastern). The spicy-regs mirror updates nightly, so by Tuesday it has
+# the previous Monday-to-Sunday week. Writes the digest and a CSV of every docket, commits them,
+# and opens an issue so it arrives by email. No model, no secrets: standard library plus duckdb.
+
+on:
+  schedule:
+    - cron: "0 14 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - id: run
+        name: Count last week's comments and write the digest
+        run: python src/run.py
+
+      - name: Commit the digest and CSV
+        if: steps.run.outputs.written == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add digests/
+          git commit -m "Comment counts, week of ${{ steps.run.outputs.week }}"
+          git push
+
+      - name: Open the digest as an issue (emails you)
+        if: steps.run.outputs.written == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEEK: ${{ steps.run.outputs.week }}
+        run: |
+          f="${{ steps.run.outputs.file }}"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/$f"
+          # issue bodies max out at 65,536 characters; a long digest links to the full file
+          python - "$f" "$url" > body.md <<'EOF'
+          import sys
+          text, url = open(sys.argv[1], encoding="utf-8").read(), sys.argv[2]
+          limit = 60000
+          print(text if len(text) <= limit else text[:limit] + f"\n\n…truncated. Full digest: {url}")
+          EOF
+          gh issue create --title "Regulations.gov comments: week of $WEEK" --body-file body.md --assignee "${{ github.repository_owner }}"
+
+      # GitHub disables scheduled workflows in a public repo after 60 days with no commits.
+      # If the newest commit is 45+ days old, add an empty one on main so the schedule survives.
+      - name: Keepalive commit
+        if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+        run: |
+          age=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "newest commit is $age days old"
+          if [ "$age" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Keepalive: no commits in $age days"
+            git push
+          fi
