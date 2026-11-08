@@ -89,7 +89,35 @@ def fmt_week(ws: date, we: date) -> str:
     return f"{ws:%b} {ws.day} – {we:%b} {we.day}, {we.year}"
 
 
-def render(data: dict, names: dict[str, str] | None = None) -> str:
+def sample_section(samples: list[dict], data: dict) -> list[str]:
+    """What a random sample of comments says, for the top dockets. Counts are by script from model labels."""
+    L = ["", "## What commenters are saying", "",
+         "A small random sample from each docket, not a poll. A model labeled each comment and wrote the summary; "
+         "stance counts and the form-letter check are computed by script, and a second model labeled stance again as a check. "
+         "Theme counts are the model's own grouping and are approximate."]
+    for r in samples:
+        d = r["docket_id"]
+        title = (data["info"].get(d, {}).get("title") or "").replace("|", "/")
+        L += ["", f"### {d}" + (f": {title if len(title) <= 90 else title[:87] + '...'}" if title else "")]
+        if r.get("error"):
+            L.append(f"Not summarized: {r['error']}.")
+            continue
+        n = len(r["readable_ids"])
+        extra = f" ({len(r['no_text'])} of the {r['sample_size']} drawn had no text, such as attachment-only comments)" if r["no_text"] else ""
+        L.append(f"A random sample of {n} of the {r['total_posted']:,} comments posted this week{extra}.")
+        stances = ", ".join(f"{s} {c}" for s, c in sorted(r["stances"].items(), key=lambda kv: -kv[1]) if c)
+        L.append(f"Stance (model labels): {stances}. The second model agreed on {r['check_agree']} of {r['check_n']}.")
+        dup = sum(len(g) for g in r["duplicate_groups"])
+        L.append(f"Near-identical text (by script): {dup} of {n} sampled comments fall in {len(r['duplicate_groups'])} groups "
+                 "of near-copies, which suggests form letters." if dup else "Near-identical text (by script): none found in the sample.")
+        L += ["", r["summary"]]
+        if r["themes"]:
+            L += [""] + [f"- {t['label']} ({len(t['indices'])} of {n})" for t in r["themes"]]
+    return L
+
+
+def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] | None = None,
+           sample_cost: float = 0.0) -> str:
     names = names if names is not None else agency_names()
     ws, we, t = data["week_start"], data["week_end"], data["totals"]
     rows = annotate(data)
@@ -105,14 +133,19 @@ def render(data: dict, names: dict[str, str] | None = None) -> str:
     top = [by_week[c["docket_id"]] for c in data["counts"][:TOP_N] if c["docket_id"] in by_week]
     if top:
         L += ["", "## Most comments posted", ""] + table(top, names)
+    if samples:
+        L += sample_section(samples, data)
     sections = [("New dockets drawing comments", [r for r in rows if r["new"]], f"first comment within {NEW_WITHIN_DAYS} days before the week"),
                 ("Sudden jumps", [r for r in rows if r["jump"]], f"at least {SURGE_MIN:,} posted and at least {SURGE_FACTOR}x the mean of the four weeks before"),
                 ("Comment periods closing soon", sorted([r for r in rows if r["closing"]], key=lambda r: r["closes"]), f"closing within {CLOSING_DAYS} days")]
     for title, found, rule in sections:
         if found:
             L += ["", f"## {title}", "", f"({rule}; showing up to {SECTION_N})", ""] + table(found[:SECTION_N], names)
-    L += ["", "---",
-          f"Counts come from the spicy-regs mirror of regulations.gov (data through {data['data_through']}). "
+    L += ["", "---"]
+    if samples:
+        L.append(f"Sampled summaries: Sonnet 5.5 with a Haiku 5.5 stance check; cost ${sample_cost:.2f}. "
+                 "The sampled comment IDs and text hashes are in `digests/samples/`, so the sample can be redrawn and checked against regulations.gov.")
+    L += [f"Counts come from the spicy-regs mirror of regulations.gov (data through {data['data_through']}). "
           "The mirror can run slightly below regulations.gov's own API for busy dockets; see `proof/` for the checks. "
           f"Dockets with under {MIN_CANDIDATE} comments in the week are left out of the sections above."]
     return "\n".join(L) + "\n"

@@ -2,7 +2,7 @@ name: Weekly comment counts
 
 # Tuesdays 14:00 UTC (9-10am Eastern). The spicy-regs mirror updates nightly, so by Tuesday it has
 # the previous Monday-to-Sunday week. Writes the digest and a CSV of every docket, commits them,
-# and opens an issue so it arrives by email. No model, no secrets: standard library plus duckdb.
+# and opens an issue so it arrives by email. Sampled summaries run only if an ANTHROPIC_API_KEY secret exists.
 
 on:
   schedule:
@@ -37,7 +37,12 @@ jobs:
 
       - id: run
         name: Count last week's comments and write the digest
-        run: python src/run.py ${{ inputs.force && '--force' || '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
+          # sampled summaries only when the API key secret exists
+          SAMPLES: ${{ secrets.ANTHROPIC_API_KEY != '' && '3' || '0' }}
+        run: python src/run.py ${{ inputs.force && '--force' || '' }} --samples "$SAMPLES"
 
       - name: Commit the digest and CSV
         if: steps.run.outputs.written == 'true'
