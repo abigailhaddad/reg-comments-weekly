@@ -2,7 +2,7 @@
 
 A weekly look at which regulations.gov dockets are drawing comments: the busiest ones, new ones, sudden jumps, and comment periods about to close.
 
-Each digest is also published at https://abigailhaddad.github.io/reg-comments-weekly/, with an RSS feed at https://abigailhaddad.github.io/reg-comments-weekly/feed.xml (built by `src/build_site.py`, deployed by `.github/workflows/site.yml`).
+Each digest is also published at https://reg-comments-weekly.abigailhaddad.com/, with an RSS feed at https://reg-comments-weekly.abigailhaddad.com/feed.xml (built by `src/build_site.py`, deployed to Cloudflare Pages by `.github/workflows/site.yml`).
 
 Counts come from the [spicy-regs](https://github.com/civictechdc/spicy-regs) mirror of regulations.gov, read straight from its public parquet files. The counts involve no model; the optional sampled summaries (below) do. Unofficial; not affiliated with regulations.gov.
 
