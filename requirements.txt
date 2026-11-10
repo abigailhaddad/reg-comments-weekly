@@ -1,2 +1,4 @@
 duckdb
 anthropic
+markdown-it-py
+nh3
