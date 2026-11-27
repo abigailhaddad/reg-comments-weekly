@@ -12,6 +12,7 @@ at least BULK_MIN: agencies often post in batches, so that week is likely a rele
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -43,7 +44,7 @@ def annotate(data: dict) -> list[dict]:
     for c in data["candidates"]:
         d = c["docket_id"]
         hist = data["history"].get(d, {"total": c["this_week"], "first_posted": None})
-        info = data["info"].get(d, {"title": "", "type": "", "closes": None})
+        info = {"abstract": "", **data["info"].get(d, {"title": "", "type": "", "closes": None})}
         day, day_n = data["busiest"].get(d, (None, 0))
         base = max(c["prior_avg"], 1.0)
         is_new = bool(hist["first_posted"]) and hist["first_posted"] >= new_after
@@ -153,28 +154,53 @@ def sample_sentence(r: dict) -> str:
     return f"In a random sample of {n}, {plain_list(parts)}; {copies}."
 
 
-def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: list[dict], top_n: int = 3) -> list[str]:
-    """The week as short paragraphs, not a table. Every number comes from the counts."""
-    t, today = data["totals"], data["today"]
+def first_sentence(text: str, limit: int = 400) -> str:
+    """The abstract's first sentence, verbatim (a period after a capital, as in "U.S.", doesn't end it)."""
+    t = " ".join((text or "").split())
+    m = re.search(r"(?<=[a-z0-9)\]]\.)\s+(?=[A-Z(])", t)
+    s = t[:m.start()] if m else t
+    return s if len(s) <= limit else s[:limit].rsplit(" ", 1)[0].rstrip(",;:") + " …"
+
+
+def story_parts(data: dict, rows: list[dict], top_n: int = 3) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+    """The dockets the story writes about: the top ones, then new ones, jumps and closing soon (each list capped)."""
     by = {r["docket_id"]: r for r in rows}
-    sample_by = {r["docket_id"]: r for r in (samples or [])}
     lead = [by[c["docket_id"]] for c in data["counts"][:top_n] if c["docket_id"] in by]
+    rest_new = [r for r in rows if r["new"] and r not in lead][:SECTION_N]
+    rest_jump = [r for r in rows if r["jump"] and r not in lead][:SECTION_N]
+    rest_close = sorted([r for r in rows if r["closing"] and r not in lead], key=lambda r: r["closes"])[:SECTION_N]
+    return lead, rest_new, rest_jump, rest_close
+
+
+def story_dockets(data: dict, rows: list[dict]) -> list[str]:
+    seen: list[str] = []
+    for group in story_parts(data, rows):
+        seen += [r["docket_id"] for r in group if r["docket_id"] not in seen]
+    return seen
+
+
+def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: list[dict], top_n: int = 3,
+          opening: dict | None = None) -> list[str]:
+    """The week as short paragraphs, not a table. Every number comes from the counts. `opening` is the checked
+    paragraph from opening.py; it is used only if its status is "kept"."""
+    t, today = data["totals"], data["today"]
+    sample_by = {r["docket_id"]: r for r in (samples or [])}
+    lead, rest_new, rest_jump, rest_close = story_parts(data, rows, top_n)
     out = []
-    if t["prior_week"]:
-        out.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets, "
-                   f"{abs(t['this_week'] / t['prior_week'] - 1):.0%} {'more' if t['this_week'] >= t['prior_week'] else 'fewer'} than the week before.")
-    else:
-        out.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets.")
-    if lead and t["this_week"]:
-        share = sum(r["this_week"] for r in lead) / t["this_week"]
-        out[0] += f" Most of them went to a few places: the top {len(lead)} dockets drew {share:.0%} of the week's total."
-    out.append("\"Posted\" means the day the agency made a comment public, not the day it was submitted, "
+    in_opening: set[str] = set()   # dockets the opening already describes from their abstract
+    if opening and opening.get("status") == "kept" and opening.get("text"):
+        out += [opening["text"], ""]
+        in_opening = {src.get("docket") for src in opening.get("sources") or []}
+    # the week-over-week change and the top dockets' share are in the table below, not in the prose
+    out.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets this week. "
+               "\"Posted\" means the day the agency made a comment public, not the day it was submitted, "
                "and agencies often post in batches, so a big week can be a backlog being released.")
     for r in lead:
         agency = names.get(r["agency"], r["agency"] or "")
-        para = [f"### {short_title(r['title'])}", "",
-                f"{agency}. {r['this_week']:,} comments were posted this week, {delta_phrase(r['this_week'], r['prior_week'])}, "
-                f"and {r['total']:,} so far."]
+        para = [f"### {short_title(r['title'])}", ""]
+        if r.get("abstract") and len(r["abstract"]) >= 40 and r["docket_id"] not in in_opening:
+            para += [f"From the docket's abstract: “{first_sentence(r['abstract'])}”", ""]
+        para += [f"{agency}. {r['this_week']:,} comments were posted this week, {r['total']:,} in all."]
         if r["closes"]:
             para[-1] += (f" The comment period ended {nice_day(r['closes'])}." if r["closes"] < today.isoformat()
                          else f" Comments are open until {nice_day(r['closes'])}.")
@@ -186,9 +212,6 @@ def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: l
         if sm and not sm.get("error"):
             para += ["", sample_sentence(sm), "", sm["summary"]]
         out += [""] + para
-    rest_new = [r for r in rows if r["new"] and r not in lead][:SECTION_N]
-    rest_jump = [r for r in rows if r["jump"] and r not in lead][:SECTION_N]
-    rest_close = sorted([r for r in rows if r["closing"] and r not in lead], key=lambda r: r["closes"])[:SECTION_N]
 
     def who(r):
         return f"**{short_title(r['title'], 80)}** ({names.get(r['agency'], r['agency'])})"
@@ -206,14 +229,14 @@ def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: l
 
 
 def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] | None = None,
-           sample_cost: float = 0.0, style: str = "table") -> str:
+           sample_cost: float = 0.0, style: str = "table", opening: dict | None = None) -> str:
     names = names if names is not None else agency_names()
     ws, we, t = data["week_start"], data["week_end"], data["totals"]
     rows = annotate(data)
     by_week = {r["docket_id"]: r for r in rows}
     L = [f"# Regulations.gov comments, {fmt_week(ws, we)}", ""]
     if style == "story":
-        L += story(data, names, samples, rows)
+        L += story(data, names, samples, rows, opening=opening)
         if data["data_through"] and data["data_through"] < we.isoformat():
             L += ["", f"⚠️ The mirror only has posts through {data['data_through']}, before the end of this week, "
                       "so the last days are missing and these counts are low."]
@@ -245,6 +268,10 @@ def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] 
             if found:
                 L += ["", f"## {title}", "", f"({rule}; showing up to {SECTION_N})", ""] + table(found[:SECTION_N], names)
     L += ["", "---"]
+    if opening and opening.get("status") == "kept":
+        L.append(f"Opening paragraph: {opening.get('model', 'Claude')}, from each docket's title and abstract; every "
+                 "sentence cites a docket and a quote from it, and code checks the quote and every name, number and date "
+                 "against that docket; cost ${:.2f}. The paragraph, its quotes and the checks are in `digests/openings/`.".format(opening.get("cost_usd", 0.0)))
     if samples:
         L.append(f"Sampled summaries: Sonnet 5.5 with a Haiku 5.5 stance check; cost ${sample_cost:.2f}. "
                  "The sampled comment IDs and text hashes are in `digests/samples/`, so the sample can be redrawn and checked against regulations.gov.")

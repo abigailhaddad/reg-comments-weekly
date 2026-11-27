@@ -25,12 +25,17 @@ With `--samples K`, the run also draws a random sample of comments (25 by defaul
 - The model is told not to quote comments or repeat names or other personal details, and emails and phone numbers are removed (best effort) before any text goes to a model. The instruction not to quote or name anyone isn't enforced by code, so skim a digest before you publish it.
 - A sample of 25 is not a poll.
 
+## Opening paragraph (optional)
+
+With `--opening`, the run asks Claude Sonnet 5.5 for two to four sentences on what the rules in the digest would do, from each docket's title and abstract (the `abstract` column of the mirror's `dockets.parquet`); no comment text and no counts go in. `src/opening.py` checks every sentence before it is used: it must cite a docket with a quote found word for word in that docket's title or abstract, and every name, number and date in it must appear in the dockets it cites. Counting words, words about how commenters feel, hype words and advice are refused. If any check fails, the digest goes without the paragraph. The paragraph, its quotes, the facts it was written from and any failed checks are saved in `digests/openings/<week>.json`. The Action turns it on only when the API key secret exists.
+
 ## Running
 
     python -m venv .venv && .venv/bin/pip install -r requirements.txt
     .venv/bin/python src/run.py                          # last complete week
     .venv/bin/python src/run.py --today 2026-11-10       # pretend it's another day
     ANTHROPIC_API_KEY=... .venv/bin/python src/run.py --samples 3   # add sampled summaries for the top 3 dockets
+    ANTHROPIC_API_KEY=... .venv/bin/python src/run.py --opening     # add the checked opening paragraph
     .venv/bin/python scripts/validate_against_api.py --week 2026-10-26
     .venv/bin/pip install pytest && .venv/bin/python -m pytest tests
 
