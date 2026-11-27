@@ -158,7 +158,7 @@ def test_story_style_leads_with_prose_and_puts_the_table_after_it():
     assert "|" not in head.replace("A / title", "")              # no table before the numbers section
     assert "| Docket |" in tail
     assert "of the week's posts came on Oct 30, so this looks like a batch release" in head
-    assert "## Also moving" in head and "is new: its first comment was posted Oct 26" in head
+    assert "## Also moving" in head and "new, first comment posted Oct 26" in head
     assert "2026-" not in head                                   # dates are written for people, not as ISO strings
 
 
@@ -188,3 +188,18 @@ def test_collect_works_on_a_mirror_without_an_abstract_column(tmp_path):
     os.replace(f"{src}/d2.parquet", f"{src}/dockets.parquet")
     data = collect.collect(TODAY, src)
     assert data["info"]["C-1"]["abstract"] == "" and "From the docket's abstract" not in report.render(data, {}, style="story")
+
+
+def test_also_moving_is_one_line_per_docket_capped_and_says_what_it_leaves_out():
+    # 2026-11-27: a docket that is both new and closing soon is listed once, with both flags; only the
+    # ALSO_N busiest are listed, and the digest says how many others met the rules
+    base = {"title": "T", "agency": "A", "first_posted": "2026-11-10", "closes": "2026-11-24", "factor": 1.0,
+            "jump": False, "total": 1}
+    rows = [dict(base, docket_id=f"X-{i}", this_week=1000 - i, new=True, closing=(i == 0)) for i in range(8)]
+    data = {"counts": [{"docket_id": "Z-1"}], "today": date(2026, 11, 18)}
+    listed, left = report.also_moving(data, rows, top_n=0)
+    assert [r["docket_id"] for r in listed] == [f"X-{i}" for i in range(report.ALSO_N)] and left == 8 - report.ALSO_N
+    line = report.also_line(rows[0], {})
+    assert line == "**T** (A): new, first comment posted Nov 10; 1,000 comments this week; closes Nov 24."
+    text = "\n".join(report.story({**data, "totals": {"this_week": 1, "prior_week": 0, "dockets": 1}}, {}, None, rows, top_n=0))
+    assert text.count("**T** (A)") == report.ALSO_N and "3 more dockets new, jumping or closing soon are in" in text

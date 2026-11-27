@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from collect import MIN_CANDIDATE  # noqa: E402
 
 TOP_N = 15
+STORY_TABLE_N = 10   # the story style's table: the ten dockets with the most comments (every docket is in the CSV)
 SECTION_N = 10
 NEW_WITHIN_DAYS = 21
 SURGE_MIN = 500
@@ -72,15 +73,21 @@ def note(r: dict) -> str:
     return "; ".join(bits)
 
 
-def table(rows: list[dict], names: dict[str, str]) -> list[str]:
-    out = ["| Docket | Agency | About | Posted | Week before | All time | Comments close | Note |",
-           "|---|---|---|---:|---:|---:|---|---|"]
+def table(rows: list[dict], names: dict[str, str], compact: bool = False) -> list[str]:
+    """compact (the story style): titles cut at 50 characters and no week-before column (it is in the CSV)."""
+    if compact:
+        out = ["| Docket | Agency | About | Posted | All time | Comments close | Note |", "|---|---|---|---:|---:|---|---|"]
+    else:
+        out = ["| Docket | Agency | About | Posted | Week before | All time | Comments close | Note |",
+               "|---|---|---|---:|---:|---:|---|---|"]
+    limit = 50 if compact else 90
     for r in rows:
         title = " ".join((r["title"] or "(no title)").split()).replace("|", "/")
-        title = title if len(title) <= 90 else title[:87] + "..."
+        title = title if len(title) <= limit else title[:limit - 3] + "..."
         agency = names.get(r["agency"], r["agency"] or "")
+        prior = "" if compact else f" | {r['prior_week']:,}"
         out.append(f"| [{r['docket_id']}](https://www.regulations.gov/docket/{r['docket_id']}) | {agency} | {title} "
-                   f"| {r['this_week']:,} | {r['prior_week']:,} | {r['total']:,} | {r['closes'] or ''} | {note(r)} |")
+                   f"| {r['this_week']:,}{prior} | {r['total']:,} | {r['closes'] or ''} | {note(r)} |")
     return out
 
 
@@ -173,10 +180,9 @@ def story_parts(data: dict, rows: list[dict], top_n: int = 3) -> tuple[list[dict
 
 
 def story_dockets(data: dict, rows: list[dict]) -> list[str]:
-    seen: list[str] = []
-    for group in story_parts(data, rows):
-        seen += [r["docket_id"] for r in group if r["docket_id"] not in seen]
-    return seen
+    """The dockets the story shows: the featured ones, then those under "Also moving"."""
+    lead = story_parts(data, rows)[0]
+    return [r["docket_id"] for r in lead] + [r["docket_id"] for r in also_moving(data, rows)[0]]
 
 
 def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: list[dict], top_n: int = 3,
@@ -213,19 +219,42 @@ def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: l
             para += ["", sample_sentence(sm), "", sm["summary"]]
         out += [""] + para
 
-    def who(r):
-        return f"**{short_title(r['title'], 80)}** ({names.get(r['agency'], r['agency'])})"
-    more = [f"{who(r)} is new: its first comment was posted {nice_day(r['first_posted'])}, and {r['this_week']:,} came in this week."
-            for r in rest_new]
-    more += [f"{who(r)} jumped to {r['this_week']:,} comments this week, {r['factor']:.0f}x its recent weekly average."
-             for r in rest_jump]
-    more += [f"{who(r)} closes {nice_day(r['closes'])}. It has {r['total']:,} comments so far, {r['this_week']:,} of them this week."
-             for r in rest_close]
-    if more:
+    listed, left = also_moving(data, rows, top_n)
+    if listed:
         out += ["", "## Also moving", ""]
-        for m in more:
-            out += [m, ""]
+        for r in listed:
+            out += [also_line(r, names), ""]
+        if left:
+            out += [f"{left} more {'docket' if left == 1 else 'dockets'} new, jumping or closing soon "
+                    f"{'is' if left == 1 else 'are'} in the table below or this week's CSV.", ""]
     return out
+
+
+ALSO_N = 5   # "Also moving" lists the five busiest of the week's new, jumping and closing-soon dockets
+
+
+def also_moving(data: dict, rows: list[dict], top_n: int = 3) -> tuple[list[dict], int]:
+    """The dockets under "Also moving": new, jumping or closing soon, not already featured, one entry per docket,
+    the ALSO_N with the most comments posted this week. Returns (listed, how many others met the rules)."""
+    _, rest_new, rest_jump, rest_close = story_parts(data, rows, top_n)
+    seen: dict[str, dict] = {}
+    for r in rest_new + rest_jump + rest_close:
+        seen.setdefault(r["docket_id"], r)
+    ranked = sorted(seen.values(), key=lambda r: (-r["this_week"], r["docket_id"]))
+    return ranked[:ALSO_N], max(0, len(ranked) - ALSO_N)
+
+
+def also_line(r: dict, names: dict[str, str]) -> str:
+    """One line per docket, with every flag it has (a docket both new and closing soon is listed once)."""
+    bits = []
+    if r["new"]:
+        bits.append(f"new, first comment posted {nice_day(r['first_posted'])}")
+    if r["jump"]:
+        bits.append(f"{r['factor']:.0f}x its recent weekly average")
+    bits.append(f"{r['this_week']:,} comments this week")
+    if r["closing"]:
+        bits.append(f"closes {nice_day(r['closes'])}")
+    return f"**{short_title(r['title'], 80)}** ({names.get(r['agency'], r['agency'])}): " + "; ".join(bits) + "."
 
 
 def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] | None = None,
@@ -237,12 +266,14 @@ def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] 
     L = [f"# Regulations.gov comments, {fmt_week(ws, we)}", ""]
     if style == "story":
         L += story(data, names, samples, rows, opening=opening)
+        top_n = STORY_TABLE_N
         if data["data_through"] and data["data_through"] < we.isoformat():
             L += ["", f"⚠️ The mirror only has posts through {data['data_through']}, before the end of this week, "
                       "so the last days are missing and these counts are low."]
-        top = [by_week[c["docket_id"]] for c in data["counts"][:TOP_N] if c["docket_id"] in by_week]
+        top = [by_week[c["docket_id"]] for c in data["counts"][:top_n] if c["docket_id"] in by_week]
         if top:
-            L += ["", "## The numbers", "", f"The {len(top)} dockets with the most comments posted:", ""] + table(top, names)
+            L += ["", "## The numbers", "", f"The {len(top)} dockets with the most comments posted. Every docket, with the "
+                      "week before and the four-week average, is in this week's CSV:", ""] + table(top, names, compact=True)
         if samples:
             L += ["", "Sample summaries: a model labeled each sampled comment and wrote the summary; the counts and the "
                       "near-copy check are computed by script, and a second model labeled stance again as a check "

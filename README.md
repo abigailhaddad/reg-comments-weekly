@@ -15,6 +15,10 @@ Things to know before you read a digest:
 - **Agencies often post in batches.** A docket whose week is mostly one day gets a "likely a batch" note. A big number then means a backlog was released.
 - **The mirror can run a little below regulations.gov.** `scripts/validate_against_api.py` compares a week with the API and writes the result to `proof/`. Run it with your own key (`REGULATIONS_GOV_API_KEY`); the shared demo key allows only a few calls an hour.
 - **Dockets with few comments in the week are left out** of the sections, though they're in the CSV.
+- **The narrative digest is cut to a weekly read by fixed rules:** three featured dockets; "Also moving" lists each
+  new, jumping or closing-soon docket once, the five with the most comments this week, and says how many others
+  met those rules; the table shows the ten busiest dockets without the week-before column. Every docket, with
+  the week before and the four-week average, is in `digests/data/<week>.csv`.
 
 ## Sampled summaries (optional)
 
