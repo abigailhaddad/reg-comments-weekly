@@ -227,8 +227,11 @@ def sentence_problems(s: dict, f: dict, items: dict) -> list[str]:
         if (NUM_WORDS[v] if v in NUM_WORDS else int(v)) != len(cited):
             out.append(f"{label}: count {m.group(0)!r} is not the number of dockets it cites ({len(cited)})")
     dates = {(int(y), int(m), int(d)) for y, m, d in re.findall(r"(\d{4})-(\d{2})-(\d{2})", ctx)}
+    written = {" ".join(x.split()).replace(" ,", ",").lower() for x in re.findall(r"\b(?:" + "|".join(MONTHS) + r")\s+\d{1,2}(?:,\s*\d{4})?", ctx)}
     for m in re.finditer(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b", text):
         mon, day, yr = MONTHS.index(m.group(1)) + 1, int(m.group(2)), m.group(3)
+        if " ".join(m.group(0).split()).lower() in written:   # the same date written out in the cited text
+            continue
         if not any(mm == mon and dd == day and (not yr or yy == int(yr)) for yy, mm, dd in dates):
             out.append(f"{label}: date not in its cited dockets: {m.group(0)!r}")
     words = {w.casefold() for w in re.findall(r"[A-Za-z][A-Za-z'’]*", ctx)}
