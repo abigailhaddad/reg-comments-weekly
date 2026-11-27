@@ -90,6 +90,7 @@ def test_each_check_refuses_the_sentence():
         "exclamation": [{"text": "A proposal would let plans provide documents electronically!", "sources": [ebsa]}],
         "prose about the input": [{"text": "The abstract says plans could provide documents electronically.", "sources": [ebsa]}],
         "quote for": [{"text": "A proposal would let plans provide documents electronically.", "sources": [{**ebsa, "quote": "electronically"}]}],
+        "count": [{"text": "Three rules cover electronic documents and refugee status.", "sources": [ebsa, uscis]}],
     }
     for want, sentences in cases.items():
         p = run(sentences)

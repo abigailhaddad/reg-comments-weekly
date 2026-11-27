@@ -16,6 +16,7 @@ sentence is refused, and with it the whole opening, unless:
 * every number and every capitalised word (agencies, programs, places, laws) appears in the facts of the dockets
   it cites or the week's dates, apart from a short list of ordinary words;
 * every date ("January 12") is a date in a cited docket's facts;
+* a count of things ("two proposals") equals the number of dockets it cites;
 * it says "the most comments" only about the docket ranked first, and otherwise uses no counting words (most,
   many, several, majority, thousands), no hype words, no advice to the reader, no prose about the input, no
   exclamation marks.
@@ -153,6 +154,12 @@ META = re.compile(r"\b(input|facts?|provided|abstracts?|the data|in the data|lis
 STANCE = re.compile(r"\b(oppos\w*|support\w*|object\w*|criticiz\w*|praise\w*|urg\w*|angry|outrage\w*)\b", re.I)
 
 
+NUM_WORDS = {w: i for i, w in enumerate(["zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+                                         "nine", "ten", "eleven", "twelve"])}
+COUNT_RE = re.compile(r"\b(\d+|" + "|".join(NUM_WORDS) + r")\s+(?:(?:new|separate|more|other|related|proposed|final|"
+                      r"interim)\s+)*(rules?|proposals?|dockets?|notices?|requests?|regulations?|agencies|petitions?)\b", re.I)
+
+
 def norm(s) -> str:
     s = str(s or "").replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
     s = s.replace("—", "-").replace("–", "-")
@@ -207,6 +214,10 @@ def sentence_problems(s: dict, f: dict, items: dict) -> list[str]:
             out.append(f"{label}: {name}: {m.group(0)!r}")
     if extra := numbers(text) - numbers(ctx):
         out.append(f"{label}: numbers not in its cited dockets: {sorted(extra)}")
+    for m in COUNT_RE.finditer(text):   # "two proposals": the number of dockets this sentence cites
+        v = m.group(1).lower()
+        if (NUM_WORDS[v] if v in NUM_WORDS else int(v)) != len(cited):
+            out.append(f"{label}: count {m.group(0)!r} is not the number of dockets it cites ({len(cited)})")
     dates = {(int(y), int(m), int(d)) for y, m, d in re.findall(r"(\d{4})-(\d{2})-(\d{2})", ctx)}
     for m in re.finditer(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b", text):
         mon, day, yr = MONTHS.index(m.group(1)) + 1, int(m.group(2)), m.group(3)
