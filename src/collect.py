@@ -2,7 +2,7 @@
 
 Reads three parquet files over HTTP range requests (no download, no API key):
   comments.parquet   one row per comment: docket_id, agency_code, posted_date, receive_date, ...
-  dockets.parquet    docket_id, title, docket_type, ...
+  dockets.parquet    docket_id, title, docket_type, abstract, ...
   documents.parquet  docket_id, comment_start_date, comment_end_date, ...
 
 Counts are by POSTED date (the day the agency made the comment public), not the day it was
@@ -99,13 +99,16 @@ def history(con, src: str, ids: list[str]) -> dict[str, dict]:
 
 
 def docket_info(con, src: str, ids: list[str]) -> dict[str, dict]:
-    """Title, type, and the latest comment-period end date among the docket's documents."""
-    info = {i: {"title": "", "type": "", "closes": None} for i in ids}
-    for docket, title, kind in con.sql(f"""
-            SELECT docket_id, any_value(title), any_value(docket_type)
+    """Title, type, abstract (the docket's own summary of the rule), and the latest comment-period end date
+    among the docket's documents."""
+    info = {i: {"title": "", "type": "", "closes": None, "abstract": ""} for i in ids}
+    cols = {r[0] for r in con.sql(f"DESCRIBE SELECT * FROM read_parquet('{src}/dockets.parquet')").fetchall()}
+    abstract = "any_value(abstract)" if "abstract" in cols else "''"
+    for docket, title, kind, abst in con.sql(f"""
+            SELECT docket_id, any_value(title), any_value(docket_type), {abstract}
             FROM read_parquet('{src}/dockets.parquet')
             WHERE docket_id IN ({quote_list(ids)}) GROUP BY 1""").fetchall():
-        info[docket].update(title=title or "", type=kind or "")
+        info[docket].update(title=title or "", type=kind or "", abstract=" ".join((abst or "").split()))
     for docket, closes in con.sql(f"""
             SELECT docket_id, max(substr(comment_end_date, 1, 10))
             FROM read_parquet('{src}/documents.parquet')

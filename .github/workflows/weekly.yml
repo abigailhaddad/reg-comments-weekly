@@ -42,7 +42,9 @@ jobs:
           ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
           # sampled summaries only when the API key secret exists
           SAMPLES: ${{ secrets.ANTHROPIC_API_KEY != '' && '3' || '0' }}
-        run: python src/run.py ${{ inputs.force && '--force' || '' }} --samples "$SAMPLES"
+          # the checked opening paragraph, also only with the key (src/opening.py)
+          OPENING: ${{ secrets.ANTHROPIC_API_KEY != '' && '--opening' || '' }}
+        run: python src/run.py ${{ inputs.force && '--force' || '' }} --samples "$SAMPLES" $OPENING
 
       - name: Commit the digest and CSV
         if: steps.run.outputs.written == 'true'

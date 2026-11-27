@@ -1,6 +1,6 @@
 """The weekly run: find last week's comment counts, write the digest and a CSV of every docket.
 
-    python src/run.py [--today 2026-11-10] [--force]
+    python src/run.py [--today 2026-11-10] [--force] [--samples 3] [--opening]
 
 Writes digests/<week start>.md and digests/data/<week start>.csv. If the digest for that week
 already exists nothing is overwritten (a rerun must not change what was sent), unless --force.
@@ -46,6 +46,27 @@ def sampled_summaries(data: dict, a, ws) -> tuple[list[dict], float]:
     return results, cost
 
 
+def written_opening(data: dict, ws) -> dict:
+    """The checked opening paragraph (opening.py), saved with its facts and checks to digests/openings/<week>.json."""
+    import opening
+    import sample
+    names = report.agency_names()
+    rows = report.annotate(data)
+    dockets = report.story_dockets(data, rows)
+    try:
+        client = sample.make_client()
+    except Exception as e:  # noqa: BLE001 - no client means no opening, said in the file
+        o = {"status": "error", "text": None, "sources": [], "problems": [f"{type(e).__name__}: {e}"[:300]], "cost_usd": 0.0}
+    else:
+        o = opening.write(client, data, rows, names, dockets)
+    f, _ = opening.facts(data, rows, names, dockets)
+    path = ROOT / "digests" / "openings" / f"{ws}.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps({**o, "facts": f}, indent=1, ensure_ascii=False))
+    print(f"opening: {o['status']}" + (f" ({'; '.join(o['problems'])})" if o["problems"] else ""))
+    return o
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--today", help="pretend today is this ISO date (default: today)")
@@ -53,6 +74,7 @@ def main() -> int:
     ap.add_argument("--src", default=collect.SOURCE, help="base URL or folder holding the parquet files")
     ap.add_argument("--samples", type=int, default=0, help="summarize a random sample of comments for this many top dockets (0 = off; uses the API key)")
     ap.add_argument("--sample-size", type=int, default=25, help="comments drawn per docket")
+    ap.add_argument("--opening", action="store_true", help="write the checked opening paragraph (story style; uses the API key)")
     ap.add_argument("--style", choices=("story", "table"), default="story", help="narrative digest (default) or tables only")
     a = ap.parse_args()
     today = date.fromisoformat(a.today) if a.today else date.today()
@@ -68,6 +90,7 @@ def main() -> int:
         samples, sample_cost = None, 0.0
         if a.samples:
             samples, sample_cost = sampled_summaries(data, a, ws)
+        opening = written_opening(data, ws) if a.opening and a.style == "story" else None
         csv_path = ROOT / "digests" / "data" / f"{ws}.csv"
         csv_path.parent.mkdir(exist_ok=True)
         with open(csv_path, "w", newline="", encoding="utf-8") as fh:
@@ -76,7 +99,8 @@ def main() -> int:
             w.writerows([c["docket_id"], c["agency"], c["this_week"], c["prior_week"], round(c["prior_avg"], 2)]
                         for c in data["counts"])
         # the digest goes last: an existing digest means "done", so a run that fails earlier can be retried
-        out.write_text(report.render(data, samples=samples, sample_cost=sample_cost, style=a.style), encoding="utf-8")
+        out.write_text(report.render(data, samples=samples, sample_cost=sample_cost, style=a.style,
+                                      opening=opening), encoding="utf-8")
         written = True
         print(f"wrote {out.relative_to(ROOT)} and {csv_path.relative_to(ROOT)}: {data['totals']['this_week']:,} comments, "
               f"{data['totals']['dockets']:,} dockets, data through {data['data_through']}")

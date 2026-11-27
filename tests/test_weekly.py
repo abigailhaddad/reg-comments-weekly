@@ -22,7 +22,7 @@ def make_source(tmp_path):
     """A small mirror: one docket per behaviour we care about."""
     con = duckdb.connect()
     con.execute("create table comments(docket_id varchar, agency_code varchar, posted_date varchar)")
-    con.execute("create table dockets(docket_id varchar, agency_code varchar, title varchar, docket_type varchar)")
+    con.execute("create table dockets(docket_id varchar, agency_code varchar, title varchar, docket_type varchar, abstract varchar)")
     con.execute("create table documents(docket_id varchar, comment_end_date varchar)")
     rows = []
 
@@ -52,10 +52,11 @@ def make_source(tmp_path):
     post("G-1", "GGG", date(2026, 11, 1), 200)
     post("G-1", "GGG", date(2026, 11, 2), 200)
     con.executemany("insert into comments values (?, ?, ?)", rows)
-    con.executemany("insert into dockets values (?, ?, ?, ?)", [
-        ("A-1", "AAA", "A new rule | with a pipe", "Rulemaking"), ("B-1", "BBB", "B title", "Rulemaking"),
-        ("C-1", "CCC", "C title", "Nonrulemaking"), ("D-1", "DDD", "D title", "Rulemaking"),
-        ("G-1", "GGG", "G title", "Rulemaking")])
+    con.executemany("insert into dockets values (?, ?, ?, ?, ?)", [
+        ("A-1", "AAA", "A new rule | with a pipe", "Rulemaking", "OPEN"), ("B-1", "BBB", "B title", "Rulemaking", None),
+        ("C-1", "CCC", "C title", "Nonrulemaking",
+         "This proposed rule would let the U.S. Department of Examples send notices by email.  It would also end paper mail."),
+        ("D-1", "DDD", "D title", "Rulemaking", ""), ("G-1", "GGG", "G title", "Rulemaking", None)])
     con.executemany("insert into documents values (?, ?)", [
         ("D-1", "2026-11-12T04:59:59Z"), ("D-1", "0001-01-01T00:00:00Z"), ("A-1", None)])
     for t in ("comments", "dockets", "documents"):
@@ -151,11 +152,13 @@ def test_story_style_leads_with_prose_and_puts_the_table_after_it():
     text = report.render(data, {"AAA": "Agency A"}, style="story")
     head, _, tail = text.partition("## The numbers")
     assert head.startswith("# Regulations.gov comments, Oct 26 – Nov 1, 2026")
-    assert "comments were posted across 5 dockets" in head and "the top 3 dockets drew" in head
+    assert "comments were posted across 5 dockets" in head
+    # 2026-11-27: no week-over-week percentages or top-3 share in the prose; they are in the table
+    assert "the top 3 dockets drew" not in head and "than the week before" not in head and "up from" not in head
     assert "|" not in head.replace("A / title", "")              # no table before the numbers section
     assert "| Docket |" in tail
     assert "of the week's posts came on Oct 30, so this looks like a batch release" in head
-    assert "## Also moving" in head and "is new: its first comment was posted Oct 26" in head
+    assert "## Also moving" in head and "new, first comment posted Oct 26" in head
     assert "2026-" not in head                                   # dates are written for people, not as ISO strings
 
 
@@ -166,3 +169,37 @@ def test_story_sample_sentence_says_all_when_the_whole_sample_agrees():
     assert report.sample_sentence(r) == "In a random sample of 5, all 5 opposed; a script found no near-copies among them."
     r["stances"] = {"oppose": 3, "support": 2, "mixed": 0, "unclear": 0, "off_topic": 0}
     assert "3 opposed and 2 supported" in report.sample_sentence(r) and s is not None
+
+
+def test_story_quotes_the_first_sentence_of_a_real_abstract_and_skips_placeholders():
+    data = collect.collect(TODAY, make_source(Path(__import__("tempfile").mkdtemp())))
+    assert data["info"]["C-1"]["abstract"].startswith("This proposed rule would let the U.S. Department")
+    head = report.render(data, {}, style="story").partition("## The numbers")[0]
+    assert "From the docket's abstract: “This proposed rule would let the U.S. Department of Examples send notices by email.”" in head
+    assert "It would also end paper mail" not in head      # first sentence only
+    assert head.count("From the docket's abstract") == 1   # A-1's "OPEN" placeholder is skipped
+
+
+def test_collect_works_on_a_mirror_without_an_abstract_column(tmp_path):
+    src = make_source(tmp_path)
+    con = duckdb.connect()
+    con.execute(f"copy (select * exclude (abstract) from read_parquet('{src}/dockets.parquet')) to '{src}/d2.parquet' (format parquet)")
+    import os
+    os.replace(f"{src}/d2.parquet", f"{src}/dockets.parquet")
+    data = collect.collect(TODAY, src)
+    assert data["info"]["C-1"]["abstract"] == "" and "From the docket's abstract" not in report.render(data, {}, style="story")
+
+
+def test_also_moving_is_one_line_per_docket_capped_and_says_what_it_leaves_out():
+    # 2026-11-27: a docket that is both new and closing soon is listed once, with both flags; only the
+    # ALSO_N busiest are listed, and the digest says how many others met the rules
+    base = {"title": "T", "agency": "A", "first_posted": "2026-11-10", "closes": "2026-11-24", "factor": 1.0,
+            "jump": False, "total": 1}
+    rows = [dict(base, docket_id=f"X-{i}", this_week=1000 - i, new=True, closing=(i == 0)) for i in range(8)]
+    data = {"counts": [{"docket_id": "Z-1"}], "today": date(2026, 11, 18)}
+    listed, left = report.also_moving(data, rows, top_n=0)
+    assert [r["docket_id"] for r in listed] == [f"X-{i}" for i in range(report.ALSO_N)] and left == 8 - report.ALSO_N
+    line = report.also_line(rows[0], {})
+    assert line == "**T** (A): new, first comment posted Nov 10; 1,000 comments this week; closes Nov 24."
+    text = "\n".join(report.story({**data, "totals": {"this_week": 1, "prior_week": 0, "dockets": 1}}, {}, None, rows, top_n=0))
+    assert text.count("**T** (A)") == report.ALSO_N and "3 more dockets new, jumping or closing soon are in" in text
