@@ -88,6 +88,12 @@ SCHEMA = {
     "required": ["sentences"], "additionalProperties": False,
 }
 
+# The newsletter's voice (wording from usajobs-weekly's llm.VOICE), set per topic.
+VOICE = ("Voice: dry and a little wry, like a colleague who reads every rule and points out the good bits. "
+         "Short declarative sentences. Let the rule be the joke by describing it exactly; never announce that "
+         "something is funny or odd. No puns, no exclamation marks, and no mocking the people involved. These are rules people care about: keep it plain, with no wry turn unless a rule's own title or abstract supplies it.")
+
+
 PROMPT = """You write the opening paragraph of a weekly email about which federal rules drew public comments on
 regulations.gov. Readers: reporters, congressional staff, lawyers, advocates. Below the paragraph the email
 already gives each docket's comment counts, dates and a summary of a sample of comments.
@@ -114,13 +120,15 @@ For each sentence give its text and its sources: the id of every docket the sent
 of at least five words copied character for character from that docket's title or abstract, that the sentence
 rests on.
 
+{voice}
+
 Week:
 {facts}
 """
 
 
 def call_model(client, ftext: str) -> tuple[list[dict], float]:
-    r = client.messages.create(model=MODEL, max_tokens=4000, messages=[{"role": "user", "content": PROMPT.format(facts=ftext)}],
+    r = client.messages.create(model=MODEL, max_tokens=4000, messages=[{"role": "user", "content": PROMPT.format(facts=ftext, voice=VOICE)}],
                                output_config={"effort": "medium", "format": {"type": "json_schema", "schema": SCHEMA}})
     pin, pout = PRICES[MODEL]
     cost = (r.usage.input_tokens * pin + r.usage.output_tokens * pout) / 1e6
@@ -144,7 +152,7 @@ ALLOWED_CAPS = {w.lower() for w in MONTHS + WEEKDAYS} | {
 QUANTITY = re.compile(r"\b(most|many|several|numerous|majority|largest|biggest|dozens?|hundreds|thousands|handful|"
                       r"a number of|half|plurality|bulk|totals?|percent|%)\b", re.I)
 MOST_COMMENTS = re.compile(r"\b(?:the\s+)?most\s+(?:public\s+)?comments\b", re.I)
-HYPE = re.compile(r"\b(significant(?:ly)?|major|notabl[ey]|key|landmark|sweeping|historic|dramatic(?:ally)?|"
+HYPE = re.compile(r"\b(funny|odd(?:ly)?|quirky|ironic(?:ally)?|curious(?:ly)?|amusing(?:ly)?|surprising(?:ly)?|believe it or not|significant(?:ly)?|major|notabl[ey]|key|landmark|sweeping|historic|dramatic(?:ally)?|"
                   r"crucial|critical|important(?:ly)?|striking(?:ly)?|unprecedented|controversial|contentious|"
                   r"remarkabl[ey]|massive|huge|flood(?:ed)?|outcry|backlash|signals?|poised|interesting(?:ly)?)\b", re.I)
 ADVICE = re.compile(r"\b(you|your|readers?|subscribers?|should|worth (?:watching|noting|following)|keep an eye|"

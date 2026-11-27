@@ -130,3 +130,10 @@ def test_dropped_or_failed_opening_is_left_out():
         text = report.render(DATA, NAMES, style="story", opening=x)
         assert "Labor Department" not in text and "Opening paragraph:" not in text
         assert text.split("\n\n", 2)[1].startswith("35,704 comments were posted across 294 dockets this week.")
+
+
+def test_prompt_is_mostly_plain_and_announcing_oddness_is_refused():
+    assert "keep it plain" in opening.PROMPT.format(facts="{}", voice=opening.VOICE)
+    s = [{"text": "Oddly, a proposal would let plans provide documents and information electronically.",
+          "sources": [{"docket": "EBSA-2026-0331", "quote": "to provide documents and information electronically"}]}]
+    assert any("hype word: 'Oddly'" in x for x in run(s))
