@@ -1,50 +1,31 @@
 # reg-comments-weekly
 
-A weekly look at which regulations.gov dockets are drawing comments: the busiest ones, new ones, sudden jumps, and comment periods about to close.
+A weekly look at which regulations.gov dockets are drawing public comments: the busiest ones, new ones, sudden jumps, and comment periods about to close. Unofficial; not affiliated with regulations.gov.
 
-Each digest is also published at https://reg-comments-weekly.abigailhaddad.com/, with an RSS feed at https://reg-comments-weekly.abigailhaddad.com/feed.xml (built by `src/build_site.py`, deployed to Cloudflare Pages by `.github/workflows/site.yml`).
+## Links
 
-Counts come from the [spicy-regs](https://github.com/civictechdc/spicy-regs) mirror of regulations.gov, read straight from its public parquet files. The counts involve no model; the optional sampled summaries (below) do. Unofficial; not affiliated with regulations.gov.
+- Website and RSS feed: [reg-comments-weekly.abigailhaddad.com](https://reg-comments-weekly.abigailhaddad.com)
+- How this is made: [reg-comments-weekly.abigailhaddad.com/about](https://reg-comments-weekly.abigailhaddad.com/about)
+- Sign up (Federal Data Stories, topic "Regulations.gov weekly"): [data-stories.abigailhaddad.com](https://data-stories.abigailhaddad.com/#subscribe)
+- Data source: the [spicy-regs](https://github.com/civictechdc/spicy-regs) mirror of regulations.gov
 
 ## How it works
 
-A GitHub Action runs Tuesday mornings. `src/collect.py` counts the comments posted in the last complete Monday-to-Sunday week, per docket, and compares them with the week before and the average of the four weeks before that. `src/report.py` turns that into a digest by fixed rules (the thresholds, models and prompts are in `config/reg-comments-weekly.yaml`). `src/run.py` writes `digests/<week>.md` and a CSV of every docket that week in `digests/data/`, and the Action posts the digest as a GitHub issue.
+- Weekly run: [run.py](src/run.py), scheduled by [weekly.yml](.github/workflows/weekly.yml), which commits [digests/](digests) and opens the digest as a GitHub issue
+- Counts: [collect.py](src/collect.py); digest rules: [report.py](src/report.py)
+- Rules, prompts and model settings: [config/reg-comments-weekly.yaml](config/reg-comments-weekly.yaml)
+- Optional Claude text, checked in code: [opening.py](src/opening.py) (opening paragraph), [sample.py](src/sample.py) (sampled comment summaries). The sample instructions not to quote or name commenters are not enforced by code, so skim a digest before publishing it.
+- Mirror vs. regulations.gov API check: [scripts/validate_against_api.py](scripts/validate_against_api.py), results in [proof/](proof)
+- Website: [build_site.py](src/build_site.py), deployed by [site.yml](.github/workflows/site.yml)
 
-Things to know before you read a digest:
-- **"Posted" is when the agency made a comment public, not when someone submitted it.** Recent submission dates are incomplete because agencies post late.
-- **Agencies often post in batches.** A docket whose week is mostly one day gets a "likely a batch" note. A big number then means a backlog was released.
-- **The mirror can run a little below regulations.gov.** `scripts/validate_against_api.py` compares a week with the API and writes the result to `proof/`. Run it with your own key (`REGULATIONS_GOV_API_KEY`); the shared demo key allows only a few calls an hour.
-- **Dockets with few comments in the week are left out** of the sections, though they're in the CSV.
-- **The narrative digest is cut to a weekly read by fixed rules:** three featured dockets; "Also moving" lists each
-  new, jumping or closing-soon docket once, the five with the most comments this week, and says how many others
-  met those rules; the table shows the ten busiest dockets without the week-before column. Every docket, with
-  the week before and the four-week average, is in `digests/data/<week>.csv`.
+## Running locally
 
-## Sampled summaries (optional)
-
-With `--samples K`, the run also draws a random sample of comments (25 by default) for each of the top K dockets and has Claude Sonnet 5.5 summarize what they say. It needs `ANTHROPIC_API_KEY` (and `ANTHROPIC_WORKSPACE_ID` if your key needs one); the Action turns it on only when that secret exists. What the model does and doesn't do:
-- The sample is deterministic (ordered by md5 of the comment ID and the week), so it can be redrawn. `digests/samples/<week>.json` holds the comment IDs, text hashes, labels and themes, not the comment text, so a reader can check any comment on regulations.gov.
-- Form letters are found by script (word-triplet similarity), not by the model. In a first test the model called four comments "identical" when none were exact copies.
-- The model labels each comment's stance and groups comments into themes. Stance counts are computed by script from those labels, and Claude Haiku 5.5 labels stance independently; the digest says how often the two agreed. Theme counts are the model's grouping and approximate.
-- The model is told not to quote comments or repeat names or other personal details, and emails and phone numbers are removed (best effort) before any text goes to a model. The instruction not to quote or name anyone isn't enforced by code, so skim a digest before you publish it.
-- A sample of 25 is not a poll.
-
-## Opening paragraph (optional)
-
-With `--opening`, the run asks Claude Sonnet 5.5 for two to four sentences on what the rules in the digest would do, from each docket's title and abstract (the `abstract` column of the mirror's `dockets.parquet`); no comment text and no counts go in. `src/opening.py` checks every sentence before it is used: it must cite a docket with a quote found word for word in that docket's title or abstract, and every name, number and date in it must appear in the dockets it cites. Counting words, words about how commenters feel, hype words and advice are refused. If any check fails, the digest goes without the paragraph. The paragraph, its quotes, the facts it was written from and any failed checks are saved in `digests/openings/<week>.json`. The Action turns it on only when the API key secret exists.
-
-## Running
-
-    python -m venv .venv && .venv/bin/pip install -r requirements.txt
-    .venv/bin/python src/run.py                          # last complete week
-    .venv/bin/python src/run.py --today 2026-11-10       # pretend it's another day
-    ANTHROPIC_API_KEY=... .venv/bin/python src/run.py --samples 3   # add sampled summaries for the top 3 dockets
-    ANTHROPIC_API_KEY=... .venv/bin/python src/run.py --opening     # add the checked opening paragraph
-    .venv/bin/python scripts/validate_against_api.py --week 2026-10-26
-    .venv/bin/pip install pytest && .venv/bin/python -m pytest tests
-
-`agency_names.json` is a snapshot of regulations.gov's agency list, copied from [regulations-comment-explorer](https://github.com/abigailhaddad/regulations-comment-explorer).
+```sh
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python src/run.py --help
+.venv/bin/pip install pytest && .venv/bin/python -m pytest tests
+```
 
 ## License
 
-MIT (see `LICENSE`).
+MIT (see [LICENSE](LICENSE)).
