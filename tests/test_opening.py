@@ -113,7 +113,7 @@ def test_write_and_render_a_kept_opening():
     text = report.render(DATA, NAMES, style="story", opening=o)
     head = text.split("\n\n", 2)
     assert head[1].startswith("The docket with the most comments is an Employee Benefits Security Administration proposal")
-    assert "Opening paragraph:" in text
+    assert text.rstrip().splitlines()[-1].startswith("Written with Claude. ")   # 2026-11-28: was the "Opening paragraph:" note
     # the abstract line under a docket is left out when the opening already describes that docket
     with_o = "\n".join(report.story(DATA, NAMES, None, ROWS, opening=o))
     without = "\n".join(report.story(DATA, NAMES, None, ROWS))
@@ -128,7 +128,7 @@ def test_dropped_or_failed_opening_is_left_out():
     assert o["status"] == "dropped" and e["status"] == "error"
     for x in (o, e, None):
         text = report.render(DATA, NAMES, style="story", opening=x)
-        assert "Labor Department" not in text and "Opening paragraph:" not in text
+        assert "Labor Department" not in text and not text.rstrip().splitlines()[-1].startswith("Written with Claude.")
         assert text.split("\n\n", 2)[1].startswith("35,704 comments were posted across 294 dockets this week.")
 
 

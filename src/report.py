@@ -302,18 +302,9 @@ def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] 
         for title, found, rule in sections:
             if found:
                 L += ["", f"## {title}", "", f"({rule}; showing up to {SECTION_N})", ""] + table(found[:SECTION_N], names)
-    L += ["", "---"]
-    if opening and opening.get("status") == "kept":
-        L.append(f"Opening paragraph: {opening.get('model', 'Claude')}, from each docket's title and abstract; every "
-                 "sentence cites a docket and a quote from it, and code checks the quote and every name, number and date "
-                 "against that docket; cost ${:.2f}. The paragraph, its quotes and the checks are in `digests/openings/`.".format(opening.get("cost_usd", 0.0)))
-    if samples:
-        L.append(f"Sampled summaries: Sonnet 5.5 with a Haiku 5.5 stance check; cost ${sample_cost:.2f}. "
-                 "The sampled comment IDs and text hashes are in `digests/samples/`, so the sample can be redrawn and checked against regulations.gov.")
-    L += [f"Counts come from the spicy-regs mirror of regulations.gov (data through {data['data_through']}). "
-          "The mirror can run slightly below regulations.gov's own API for busy dockets; see `proof/` for the checks. "
-          f"Dockets with under {MIN_CANDIDATE} comments in the week are left out of the sections above."]
-    L += ["", how_line(bool(opening and opening.get("status") == "kept")
+    # 2026-11-28: the digest ends with one line. The model, cost, mirror and threshold notes are on the about
+    # page (about.md), which links the rules; the opening and sample records are in digests/openings|samples/.
+    L += ["", "---", "", how_line(bool(opening and opening.get("status") == "kept")
                        or any("error" not in r for r in samples or []))]
     return "\n".join(L) + "\n"
 

@@ -216,3 +216,7 @@ def test_digest_ends_with_the_how_this_is_made_line():
         assert report.render(data, {}, style=style, opening=kept).rstrip("\n").splitlines()[-1] == \
             "Written with Claude. " + link
     assert report.how_line(False) == link
+    # and that line is all there is after the rule: no model, cost, mirror or threshold notes (they are on about.md)
+    for style in ("table", "story"):
+        tail = report.render(data, {}, style=style).split("\n---\n")[-1]
+        assert tail.strip() == link

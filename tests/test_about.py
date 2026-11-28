@@ -28,7 +28,8 @@ def test_about_hard_codes_nothing_that_drifts():
 
 def test_about_links_point_at_files_that_exist():
     paths = re.findall(re.escape(REPO) + r"(?:blob|tree)/main/([^)#]+)", ABOUT)
-    assert {"config/reg-comments-weekly.yaml", "src/report.py", "src/opening.py", "proof"} <= set(paths)
+    assert {"config/reg-comments-weekly.yaml", "src/report.py", "src/opening.py", "proof", "digests/data",
+            "digests/samples"} <= set(paths)
     for p in paths:
         assert (ROOT / p).exists(), p
 
