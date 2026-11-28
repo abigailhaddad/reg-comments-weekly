@@ -188,6 +188,11 @@ def story_dockets(data: dict, rows: list[dict]) -> list[str]:
     return [r["docket_id"] for r in lead] + [r["docket_id"] for r in also_moving(data, rows)[0]]
 
 
+def through(data: dict) -> str:
+    """The as-of date for the intro sentence (2026-11-28): "Counts through Nov 25. " (the mirror's data_through)."""
+    return f"Counts through {nice_day(data['data_through'])}. " if data.get("data_through") else "Counts through: unknown. "
+
+
 def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: list[dict], top_n: int = 3,
           opening: dict | None = None) -> list[str]:
     """The week as short paragraphs, not a table. Every number comes from the counts. `opening` is the checked
@@ -202,6 +207,7 @@ def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: l
         in_opening = {src.get("docket") for src in opening.get("sources") or []}
     # the week-over-week change and the top dockets' share are in the table below, not in the prose
     out.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets this week. "
+               + through(data) +
                "\"Posted\" means the day the agency made a comment public, not the day it was submitted, "
                "and agencies often post in batches, so a big week can be a backlog being released.")
     for r in lead:
@@ -285,7 +291,7 @@ def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] 
                       "and approximate. A sample of 25 is not a poll."]
     else:
         change = f" ({t['this_week'] / t['prior_week'] - 1:+.0%} on the week before)" if t["prior_week"] else ""
-        L.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets{change}. "
+        L.append(f"{t['this_week']:,} comments were posted across {t['dockets']:,} dockets{change}. " + through(data) +
                  "\"Posted\" means the day the agency made a comment public, not the day it was submitted, and "
                  "agencies often post in batches, so a big week can be a release of a backlog.")
         if data["data_through"] and data["data_through"] < we.isoformat():

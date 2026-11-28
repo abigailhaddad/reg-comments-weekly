@@ -220,3 +220,16 @@ def test_digest_ends_with_the_how_this_is_made_line():
     for style in ("table", "story"):
         tail = report.render(data, {}, style=style).split("\n---\n")[-1]
         assert tail.strip() == link
+
+
+def test_every_digest_states_its_data_through_date():
+    # 2026-11-28: readers need the as-of date; it is in the intro sentence, in both styles
+    src = make_source(Path(__import__("tempfile").mkdtemp()))
+    data = collect.collect(TODAY, src)
+    assert data["data_through"]
+    want = f"Counts through {report.nice_day(data['data_through'])}. "
+    for style in ("table", "story"):
+        intro = report.render(data, {}, style=style).split("\n\n")
+        assert any(p.startswith(f"{data['totals']['this_week']:,} comments were posted") and want in p for p in intro), style
+    data["data_through"] = "2026-10-30"
+    assert "Counts through Oct 30. " in report.render(data, {}, style="story")
