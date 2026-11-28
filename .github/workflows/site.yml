@@ -16,7 +16,7 @@ on:
     types: [completed]
   push:
     branches: [main]
-    paths: ["digests/*.md", "src/build_site.py", ".github/workflows/site.yml"]
+    paths: ["digests/*.md", "about.md", "src/build_site.py", ".github/workflows/site.yml"]
   workflow_dispatch:
 
 permissions:
@@ -48,7 +48,8 @@ jobs:
             --title "Regulations.gov comments, weekly" \
             --description "Which Regulations.gov dockets drew comments each week: the busiest, new ones, sudden jumps, and comment periods about to close. Counts come from the spicy-regs mirror. Unofficial; not affiliated with Regulations.gov." \
             --site-url "https://reg-comments-weekly.abigailhaddad.com/" \
-            --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+            --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --about about.md
           python -c "import xml.etree.ElementTree as ET; ET.parse('_site/feed.xml')"
 
       - name: Deploy to Cloudflare Pages

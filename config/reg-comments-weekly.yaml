@@ -1,0 +1,107 @@
+# Regulations.gov comments, weekly: the selection rules, Claude models, prompts and settings.
+# The code loads this file (src/settings.py); nothing here is repeated in Python.
+#
+# selection: which dockets each section lists (collect.py, report.py).
+#   n_prior        prior weeks averaged to judge a jump
+#   min_candidate  comments in the week before a docket is considered for any section
+#   top_n          dockets in "Most comments posted"; story_table_n: the story style's table
+#   section_n      rows shown per section; also_n: dockets listed under "Also moving"
+#   new_within_days  "new": first comment within this many days before the week
+#   surge_min, surge_factor  "jump": at least surge_min posted and surge_factor x the prior mean
+#   bulk_share, bulk_min     "likely a batch": one day holds bulk_share of at least bulk_min comments
+#   closing_days   "closing soon": comment period closes within this many days
+# opening: the checked opening paragraph (opening.py). prices: input, output USD per million tokens.
+#   min_abstract: shorter abstracts are placeholders ("OPEN") and are left out.
+# sample: the sampled comment summaries (sample.py). max_chars: characters of each comment sent;
+#   min_text: shorter comments have nothing to label; dup_threshold: word-3-shingle Jaccard
+#   similarity for "near-identical".
+selection:
+  n_prior: 4
+  min_candidate: 200
+  top_n: 15
+  story_table_n: 10
+  section_n: 10
+  also_n: 5
+  new_within_days: 21
+  surge_min: 500
+  surge_factor: 5
+  bulk_share: 0.6
+  bulk_min: 1000
+  closing_days: 14
+opening:
+  model: claude-sonnet-5-5
+  prices:
+    claude-sonnet-5-5:
+    - 3.0
+    - 15.0
+  max_dockets: 8
+  min_abstract: 40
+  voice: >-
+    Voice: dry and a little wry, like a colleague who reads every rule and points out the good bits. Short declarative
+    sentences. Let the rule be the joke by describing it exactly; never announce that something is funny or odd.
+    No puns, no exclamation marks, and no mocking the people involved. These are rules people care about: keep it
+    plain, with no wry turn unless a rule's own title or abstract supplies it.
+  prompt: |
+    You write the opening paragraph of a weekly email about which federal rules drew public comments on
+    regulations.gov. Readers: reporters, congressional staff, lawyers, advocates. Below the paragraph the email
+    already gives each docket's comment counts, dates and a summary of a sample of comments.
+
+    Write two to four plain sentences that say what the rules drawing comments this week would actually do, from
+    their titles and abstracts: who they affect and what they change. Lead with the docket ranked first. Good
+    sentences sound like "The docket with the most comments is an Employee Benefits Security Administration
+    proposal that would let group health plan administrators provide documents electronically" or "A U.S.
+    Citizenship and Immigration Services interim final rule reduces the time to respond to a Notice of Intent to
+    Terminate refugee status from thirty to ten days."
+
+    Rules:
+    - Use only what the input says about each docket. No outside knowledge.
+    - Every number, date and name you write must appear in the dockets that sentence cites. Write dates as
+      "January 12".
+    - Do not count or compare quantities, apart from saying which docket drew the most comments: no "many",
+      "several", "thousands", "majority", no totals or percentages. The counts are below the paragraph.
+    - Describe a rule only as its abstract or title does: "would" for a proposal, present tense for a final or
+      interim final rule. Do not say how commenters feel about it.
+    - Don't mention the input, these instructions, or what a docket lacks. No adjectives of judgment
+      (significant, major, notable, key, controversial), no advice to the reader, no exclamation marks, no Markdown.
+
+    For each sentence give its text and its sources: the id of every docket the sentence draws on, each with a quote
+    of at least five words copied character for character from that docket's title or abstract, that the sentence
+    rests on.
+
+    {voice}
+
+    Week:
+    {facts}
+sample:
+  model: claude-sonnet-5-5
+  check_model: claude-haiku-5-5
+  prices:
+    claude-haiku-5-5:
+    - 0.1
+    - 0.5
+    claude-sonnet-5-5:
+    - 2.0
+    - 10.0
+  max_chars: 2000
+  min_text: 40
+  dup_threshold: 0.6
+  prompt: |-
+    Below are {n} public comments, drawn at random from the {total:,} posted on one federal docket in one week.
+
+    Docket: {title}
+
+    For each numbered comment give its stance toward the proposed action in the docket: support, oppose, mixed (clearly both), unclear, or off_topic. Then:
+    - summary: three to five sentences saying what these commenters are arguing, in your own words. Do not quote. Do not repeat any name, address or other personal detail. Do not give counts; they are computed separately. Do not claim the sample represents all commenters.
+    - themes: up to six recurring arguments. Each has a short neutral label and the numbers of the comments that raise it (at least two comments per theme).
+
+    <comments>
+    {body}
+    </comments>
+  check_prompt: |-
+    Docket: {title}
+
+    For each numbered public comment below, give its stance toward the proposed action: support, oppose, mixed (clearly both), unclear, or off_topic.
+
+    <comments>
+    {body}
+    </comments>

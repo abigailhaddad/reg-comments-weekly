@@ -24,14 +24,16 @@ from datetime import date
 from pathlib import Path
 
 from collect import quote_list
+from settings import CONFIG
 
 ROOT = Path(__file__).resolve().parent.parent
-MODEL, CHECK_MODEL = "claude-sonnet-5-5", "claude-haiku-5-5"
-PRICES = {"claude-sonnet-5-5": (2.00, 10.00), "claude-haiku-5-5": (0.10, 0.50)}   # $/M tokens, list price
-MAX_CHARS = 2000        # characters of each comment sent to the model
-MIN_TEXT = 40           # a comment shorter than this has nothing to label
+_CFG = CONFIG["sample"]   # config/reg-comments-weekly.yaml
+MODEL, CHECK_MODEL = _CFG["model"], _CFG["check_model"]
+PRICES = {k: tuple(v) for k, v in _CFG["prices"].items()}   # $/M tokens, list price
+MAX_CHARS = _CFG["max_chars"]        # characters of each comment sent to the model
+MIN_TEXT = _CFG["min_text"]          # a comment shorter than this has nothing to label
 STANCES = ["support", "oppose", "mixed", "unclear", "off_topic"]
-DUP_THRESHOLD = 0.6     # word-3-shingle Jaccard similarity for "near-identical"
+DUP_THRESHOLD = _CFG["dup_threshold"]     # word-3-shingle Jaccard similarity for "near-identical"
 
 
 # ---- drawing the sample ----------------------------------------------------
@@ -129,25 +131,9 @@ CHECK_SCHEMA = {
     "properties": {"labels": LABEL_SCHEMA["properties"]["labels"]},
 }
 
-PROMPT = """Below are {n} public comments, drawn at random from the {total:,} posted on one federal docket in one week.
+PROMPT = _CFG["prompt"]
 
-Docket: {title}
-
-For each numbered comment give its stance toward the proposed action in the docket: support, oppose, mixed (clearly both), unclear, or off_topic. Then:
-- summary: three to five sentences saying what these commenters are arguing, in your own words. Do not quote. Do not repeat any name, address or other personal detail. Do not give counts; they are computed separately. Do not claim the sample represents all commenters.
-- themes: up to six recurring arguments. Each has a short neutral label and the numbers of the comments that raise it (at least two comments per theme).
-
-<comments>
-{body}
-</comments>"""
-
-CHECK_PROMPT = """Docket: {title}
-
-For each numbered public comment below, give its stance toward the proposed action: support, oppose, mixed (clearly both), unclear, or off_topic.
-
-<comments>
-{body}
-</comments>"""
+CHECK_PROMPT = _CFG["check_prompt"]
 
 
 def make_client():

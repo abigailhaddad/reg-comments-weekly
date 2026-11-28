@@ -9,6 +9,9 @@ Run locally:
     python src/build_site.py --out _site --title "..." --description "..." \
         --site-url https://REPO.abigailhaddad.com/ --repo-url https://github.com/abigailhaddad/REPO
 
+With --about FILE, that markdown file becomes about.html ("How this is made"),
+linked from every page's nav; without it there is no about page.
+
 Which files become pages:
   * only digests/<YYYY-MM-DD>.md. Anything else (test-*.md, proof/, data/,
     samples/, .json) is not published; the script prints what it skipped.
@@ -120,6 +123,7 @@ def collect(digests: Path) -> tuple[list[dict], list[str]]:
 
 def page(title: str, body: str, a: argparse.Namespace) -> str:
     e = html.escape
+    about = '<a href="about.html">How this is made</a> · ' if getattr(a, "about", None) else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -130,7 +134,7 @@ def page(title: str, body: str, a: argparse.Namespace) -> str:
 <style>{CSS}</style>
 </head>
 <body>
-<nav><a href="index.html">{e(a.title)}</a> · <a href="feed.xml">RSS</a></nav>
+<nav><a href="index.html">{e(a.title)}</a> · {about}<a href="feed.xml">RSS</a></nav>
 {body}
 <footer>{e(a.description)} Source and data: <a href="{e(a.repo_url)}">{e(a.repo_url.removeprefix("https://"))}</a>.
 Subscribe: <a href="feed.xml">RSS feed</a>.</footer>
@@ -202,6 +206,9 @@ def build(a: argparse.Namespace) -> list[dict]:
         (out / f"{d['day']}.html").write_text(digest_page(d, prev, nxt, a), encoding="utf-8")
     (out / "index.html").write_text(index_page(items, a), encoding="utf-8")
     (out / "feed.xml").write_text(feed_xml(items, a), encoding="utf-8")
+    if a.about:   # the "How this is made" page, rendered from a markdown file in the repo (--about)
+        text = Path(a.about).read_text(encoding="utf-8")
+        (out / "about.html").write_text(page(first_heading(text) or "How this is made", render(text), a), encoding="utf-8")
     print(f"Published {len(items)} digest(s) to {out}/; feed has {min(len(items), a.feed_items)}.")
     for s in skipped:
         print(f"  skipped {s}")
@@ -217,6 +224,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--site-url", required=True, help="public URL of the site, e.g. https://REPO.abigailhaddad.com/")
     p.add_argument("--repo-url", required=True, help="e.g. https://github.com/abigailhaddad/REPO")
     p.add_argument("--feed-items", type=int, default=20)
+    p.add_argument("--about", help="markdown file to publish as about.html, linked from every page's nav (optional)")
     return p.parse_args(argv)
 
 

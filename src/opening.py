@@ -27,10 +27,13 @@ import json
 import re
 from datetime import date
 
-MODEL = "claude-sonnet-5-5"
-PRICES = {"claude-sonnet-5-5": (3.0, 15.0)}
-MAX_DOCKETS = 8
-MIN_ABSTRACT = 40     # shorter abstracts are placeholders ("OPEN") and are left out
+from settings import CONFIG
+
+_CFG = CONFIG["opening"]   # config/reg-comments-weekly.yaml
+MODEL = _CFG["model"]
+PRICES = {k: tuple(v) for k, v in _CFG["prices"].items()}
+MAX_DOCKETS = _CFG["max_dockets"]
+MIN_ABSTRACT = _CFG["min_abstract"]     # shorter abstracts are placeholders ("OPEN") and are left out
 
 
 # ── facts ─────────────────────────────────────────────────────────────────
@@ -89,42 +92,10 @@ SCHEMA = {
 }
 
 # The newsletter's voice (wording from usajobs-weekly's llm.VOICE), set per topic.
-VOICE = ("Voice: dry and a little wry, like a colleague who reads every rule and points out the good bits. "
-         "Short declarative sentences. Let the rule be the joke by describing it exactly; never announce that "
-         "something is funny or odd. No puns, no exclamation marks, and no mocking the people involved. These are rules people care about: keep it plain, with no wry turn unless a rule's own title or abstract supplies it.")
+VOICE = _CFG["voice"]
 
 
-PROMPT = """You write the opening paragraph of a weekly email about which federal rules drew public comments on
-regulations.gov. Readers: reporters, congressional staff, lawyers, advocates. Below the paragraph the email
-already gives each docket's comment counts, dates and a summary of a sample of comments.
-
-Write two to four plain sentences that say what the rules drawing comments this week would actually do, from
-their titles and abstracts: who they affect and what they change. Lead with the docket ranked first. Good
-sentences sound like "The docket with the most comments is an Employee Benefits Security Administration
-proposal that would let group health plan administrators provide documents electronically" or "A U.S.
-Citizenship and Immigration Services interim final rule reduces the time to respond to a Notice of Intent to
-Terminate refugee status from thirty to ten days."
-
-Rules:
-- Use only what the input says about each docket. No outside knowledge.
-- Every number, date and name you write must appear in the dockets that sentence cites. Write dates as
-  "January 12".
-- Do not count or compare quantities, apart from saying which docket drew the most comments: no "many",
-  "several", "thousands", "majority", no totals or percentages. The counts are below the paragraph.
-- Describe a rule only as its abstract or title does: "would" for a proposal, present tense for a final or
-  interim final rule. Do not say how commenters feel about it.
-- Don't mention the input, these instructions, or what a docket lacks. No adjectives of judgment
-  (significant, major, notable, key, controversial), no advice to the reader, no exclamation marks, no Markdown.
-
-For each sentence give its text and its sources: the id of every docket the sentence draws on, each with a quote
-of at least five words copied character for character from that docket's title or abstract, that the sentence
-rests on.
-
-{voice}
-
-Week:
-{facts}
-"""
+PROMPT = _CFG["prompt"]
 
 
 def call_model(client, ftext: str) -> tuple[list[dict], float]:

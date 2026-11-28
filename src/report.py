@@ -21,16 +21,19 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from collect import MIN_CANDIDATE  # noqa: E402
+from settings import CONFIG  # noqa: E402
 
-TOP_N = 15
-STORY_TABLE_N = 10   # the story style's table: the ten dockets with the most comments (every docket is in the CSV)
-SECTION_N = 10
-NEW_WITHIN_DAYS = 21
-SURGE_MIN = 500
-SURGE_FACTOR = 5
-BULK_SHARE = 0.6
-BULK_MIN = 1000
-CLOSING_DAYS = 14
+# Thresholds: config/reg-comments-weekly.yaml (selection)
+_SEL = CONFIG["selection"]
+TOP_N = _SEL["top_n"]
+STORY_TABLE_N = _SEL["story_table_n"]   # the story style's table (every docket is in the CSV)
+SECTION_N = _SEL["section_n"]
+NEW_WITHIN_DAYS = _SEL["new_within_days"]
+SURGE_MIN = _SEL["surge_min"]
+SURGE_FACTOR = _SEL["surge_factor"]
+BULK_SHARE = _SEL["bulk_share"]
+BULK_MIN = _SEL["bulk_min"]
+CLOSING_DAYS = _SEL["closing_days"]
 
 
 def agency_names() -> dict[str, str]:
@@ -230,7 +233,7 @@ def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: l
     return out
 
 
-ALSO_N = 5   # "Also moving" lists the five busiest of the week's new, jumping and closing-soon dockets
+ALSO_N = _SEL["also_n"]   # "Also moving" lists the busiest of the week's new, jumping and closing-soon dockets
 
 
 def also_moving(data: dict, rows: list[dict], top_n: int = 3) -> tuple[list[dict], int]:

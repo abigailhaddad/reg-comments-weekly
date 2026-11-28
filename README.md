@@ -8,7 +8,7 @@ Counts come from the [spicy-regs](https://github.com/civictechdc/spicy-regs) mir
 
 ## How it works
 
-A GitHub Action runs Tuesday mornings. `src/collect.py` counts the comments posted in the last complete Monday-to-Sunday week, per docket, and compares them with the week before and the average of the four weeks before that. `src/report.py` turns that into a digest by fixed rules (the thresholds are named constants at the top of the file). `src/run.py` writes `digests/<week>.md` and a CSV of every docket that week in `digests/data/`, and the Action posts the digest as a GitHub issue.
+A GitHub Action runs Tuesday mornings. `src/collect.py` counts the comments posted in the last complete Monday-to-Sunday week, per docket, and compares them with the week before and the average of the four weeks before that. `src/report.py` turns that into a digest by fixed rules (the thresholds, models and prompts are in `config/reg-comments-weekly.yaml`). `src/run.py` writes `digests/<week>.md` and a CSV of every docket that week in `digests/data/`, and the Action posts the digest as a GitHub issue.
 
 Things to know before you read a digest:
 - **"Posted" is when the agency made a comment public, not when someone submitted it.** Recent submission dates are incomplete because agencies post late.

@@ -18,9 +18,11 @@ from datetime import date, timedelta
 
 import duckdb
 
+from settings import CONFIG
+
 SOURCE = "https://r2.spicy-regs.dev"
-N_PRIOR = 4          # prior weeks averaged to judge a jump
-MIN_CANDIDATE = 200  # comments in the week before a docket is considered for any section
+N_PRIOR = CONFIG["selection"]["n_prior"]                # prior weeks averaged to judge a jump
+MIN_CANDIDATE = CONFIG["selection"]["min_candidate"]    # comments in the week before a docket is considered
 
 
 def week_bounds(today: date) -> tuple[date, date]:
