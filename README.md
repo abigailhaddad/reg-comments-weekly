@@ -21,7 +21,7 @@ A weekly look at which regulations.gov dockets are drawing public comments: the 
 ## Running locally
 
 ```sh
-python -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python src/run.py --help
 .venv/bin/pip install pytest && .venv/bin/python -m pytest tests
 ```
