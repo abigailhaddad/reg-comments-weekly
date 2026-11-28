@@ -233,6 +233,7 @@ def story(data: dict, names: dict[str, str], samples: list[dict] | None, rows: l
     return out
 
 
+HOW_URL = "https://reg-comments-weekly.abigailhaddad.com/about"
 ALSO_N = _SEL["also_n"]   # "Also moving" lists the busiest of the week's new, jumping and closing-soon dockets
 
 
@@ -312,4 +313,12 @@ def render(data: dict, names: dict[str, str] | None = None, samples: list[dict] 
     L += [f"Counts come from the spicy-regs mirror of regulations.gov (data through {data['data_through']}). "
           "The mirror can run slightly below regulations.gov's own API for busy dockets; see `proof/` for the checks. "
           f"Dockets with under {MIN_CANDIDATE} comments in the week are left out of the sections above."]
+    L += ["", how_line(bool(opening and opening.get("status") == "kept")
+                       or any("error" not in r for r in samples or []))]
     return "\n".join(L) + "\n"
+
+
+def how_line(claude_wrote: bool) -> str:
+    """The digest's last line (2026-11-28): a link to the site's about page. "Written with Claude." only when
+    the digest has Claude-written text (the kept opening paragraph or a sampled summary)."""
+    return ("Written with Claude. " if claude_wrote else "") + f"[How this is made]({HOW_URL})"

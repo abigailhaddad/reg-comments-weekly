@@ -203,3 +203,16 @@ def test_also_moving_is_one_line_per_docket_capped_and_says_what_it_leaves_out()
     assert line == "**T** (A): new, first comment posted Nov 10; 1,000 comments this week; closes Nov 24."
     text = "\n".join(report.story({**data, "totals": {"this_week": 1, "prior_week": 0, "dockets": 1}}, {}, None, rows, top_n=0))
     assert text.count("**T** (A)") == report.ALSO_N and "3 more dockets new, jumping or closing soon are in" in text
+
+
+def test_digest_ends_with_the_how_this_is_made_line():
+    # 2026-11-28: one line at the end linking the about page; "Written with Claude." only with Claude-written text
+    src = make_source(Path(__import__("tempfile").mkdtemp()))
+    data = collect.collect(TODAY, src)
+    link = "[How this is made](https://reg-comments-weekly.abigailhaddad.com/about)"
+    for style in ("table", "story"):
+        assert report.render(data, {}, style=style).rstrip("\n").splitlines()[-1] == link
+        kept = {"status": "kept", "model": "m", "cost_usd": 0.0, "sentences": []}
+        assert report.render(data, {}, style=style, opening=kept).rstrip("\n").splitlines()[-1] == \
+            "Written with Claude. " + link
+    assert report.how_line(False) == link
